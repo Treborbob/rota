@@ -2,7 +2,6 @@
 
 Private two-person household chore rota for Rob and Hannah. The agreed scope,
 domain model and rules live in **SPEC.md**; read it before changing behaviour.
-`household-agent-specification.md` is the superseded original draft.
 
 @AGENTS.md
 

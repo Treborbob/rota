@@ -1,6 +1,6 @@
 # Rota — v1 Specification
 
-**Status:** Agreed v1 scope (supersedes `household-agent-specification.md`, which is the original ChatGPT draft and can be deleted)
+**Status:** Agreed v1 scope, as built
 **Product name:** Rota
 **Domain:** rota.blackfamily.co.uk
 **Users:** Rob and Hannah. The model supports more members, but v1 is built and tested for two.
