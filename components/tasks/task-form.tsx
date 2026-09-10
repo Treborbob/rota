@@ -2,7 +2,7 @@
 
 import { ChevronDown } from "lucide-react";
 import Link from "next/link";
-import { useActionState, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { FormField } from "@/components/form-field";
 import { PendingButton } from "@/components/pending-button";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { useActionToast } from "@/components/use-action-toast";
+import { useToastAction } from "@/components/use-action-toast";
 import type { ActionState } from "@/lib/action-state";
 import { WEEKDAY_LABELS } from "@/lib/capacity";
 import {
@@ -70,8 +70,7 @@ export function TaskForm({
   submitLabel: string;
   cancelHref: string;
 }) {
-  const [state, formAction] = useActionState(action, null);
-  useActionToast(state);
+  const [state, formAction] = useToastAction(action);
   const errors = state?.fieldErrors ?? {};
 
   const [taskType, setTaskType] = useState(initial?.taskType ?? "RECURRING");

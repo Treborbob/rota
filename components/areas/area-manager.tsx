@@ -10,13 +10,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  useActionState,
-  useCallback,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
+import { useCallback, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { AreaChip } from "@/components/area-chip";
 import { FormField } from "@/components/form-field";
@@ -31,7 +25,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useActionToast } from "@/components/use-action-toast";
+import { useToastAction } from "@/components/use-action-toast";
 import type { ActionState } from "@/lib/action-state";
 import {
   archiveArea,
@@ -56,12 +50,8 @@ export function AreaManager({ areas }: { areas: AreaRow[] }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
-  const [createState, createAction] = useActionState(createArea, null);
-  const onCreated = useCallback(() => {
-    formRef.current?.reset();
-    router.refresh();
-  }, [router]);
-  useActionToast(createState, onCreated);
+  const onCreated = useCallback(() => formRef.current?.reset(), []);
+  const [createState, createAction] = useToastAction(createArea, onCreated);
 
   function run(action: () => Promise<ActionState>) {
     startTransition(async () => {
@@ -181,14 +171,12 @@ export function AreaManager({ areas }: { areas: AreaRow[] }) {
 
 function RenameDialog({ areaId, name }: { areaId: string; name: string }) {
   const [open, setOpen] = useState(false);
-  const router = useRouter();
-  const action = renameArea.bind(null, areaId);
-  const [state, formAction] = useActionState(action, null);
-  const onSuccess = useCallback(() => {
-    setOpen(false);
-    router.refresh();
-  }, [router]);
-  useActionToast(state, onSuccess);
+  const action = useCallback(
+    (prev: ActionState, fd: FormData) => renameArea(areaId, prev, fd),
+    [areaId],
+  );
+  const onSuccess = useCallback(() => setOpen(false), []);
+  const [state, formAction] = useToastAction(action, onSuccess);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

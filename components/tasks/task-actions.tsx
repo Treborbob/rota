@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useActionState, useCallback, useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { FormField } from "@/components/form-field";
 import { PendingButton } from "@/components/pending-button";
@@ -40,7 +40,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useActionToast } from "@/components/use-action-toast";
+import { useToastAction } from "@/components/use-action-toast";
 import type { ActionState } from "@/lib/action-state";
 import { addDaysLocal, todayLocal } from "@/lib/dates";
 import {
@@ -201,13 +201,8 @@ export function TaskActions({ task }: { task: TaskView }) {
 
 function DeferDialog({ taskId }: { taskId: string }) {
   const [open, setOpen] = useState(false);
-  const router = useRouter();
-  const [state, formAction] = useActionState(deferTask, null);
-  const onSuccess = useCallback(() => {
-    setOpen(false);
-    router.refresh();
-  }, [router]);
-  useActionToast(state, onSuccess);
+  const onSuccess = useCallback(() => setOpen(false), []);
+  const [state, formAction] = useToastAction(deferTask, onSuccess);
   const tomorrow = addDaysLocal(todayLocal(), 1);
 
   return (

@@ -1,8 +1,7 @@
 "use client";
 
 import { Undo2 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useActionState, useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import { FormField } from "@/components/form-field";
 import { PendingButton } from "@/components/pending-button";
 import { Button } from "@/components/ui/button";
@@ -16,7 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useActionToast } from "@/components/use-action-toast";
+import { useToastAction } from "@/components/use-action-toast";
 import { voidCompletionAction } from "@/lib/completions/actions";
 
 export function VoidDialog({
@@ -27,13 +26,8 @@ export function VoidDialog({
   taskName: string;
 }) {
   const [open, setOpen] = useState(false);
-  const router = useRouter();
-  const [state, formAction] = useActionState(voidCompletionAction, null);
-  const onSuccess = useCallback(() => {
-    setOpen(false);
-    router.refresh();
-  }, [router]);
-  useActionToast(state, onSuccess);
+  const onSuccess = useCallback(() => setOpen(false), []);
+  const [state, formAction] = useToastAction(voidCompletionAction, onSuccess);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

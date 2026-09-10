@@ -1,8 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useActionState, useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import { FormField } from "@/components/form-field";
 import { PendingButton } from "@/components/pending-button";
 import { Button } from "@/components/ui/button";
@@ -17,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useActionToast } from "@/components/use-action-toast";
+import { useToastAction } from "@/components/use-action-toast";
 import { todayLocal } from "@/lib/dates";
 import { completeTask } from "@/lib/tasks/actions";
 
@@ -41,13 +40,8 @@ export function CompleteDialog({
   variant?: "default" | "outline";
 }) {
   const [open, setOpen] = useState(false);
-  const router = useRouter();
-  const [state, formAction] = useActionState(completeTask, null);
-  const onSuccess = useCallback(() => {
-    setOpen(false);
-    router.refresh();
-  }, [router]);
-  useActionToast(state, onSuccess);
+  const onSuccess = useCallback(() => setOpen(false), []);
+  const [state, formAction] = useToastAction(completeTask, onSuccess);
   const errors = state?.fieldErrors ?? {};
 
   return (
