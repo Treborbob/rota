@@ -81,6 +81,7 @@ There are exactly two people. One environment variable is the allowlist.
 - Every server action and query derives the current user from the session. Client-supplied user IDs are never authority.
 - No roles. Both members can do everything.
 - No credentials are stored by Rota. Google holds the password; Rota holds only the account link.
+- For local development only, `ROTA_DEV_LOGIN=true` enables `/api/dev-login?email=…` with a fixed password. It is compiled out of production builds and still subject to the allowlist.
 
 Production and local development each have their own Google redirect URI. Vercel preview deployments are not authenticated and are not a supported target; deploy from `main`.
 
@@ -183,6 +184,8 @@ For each candidate in score order: enumerate eligible buckets (allowed weekday, 
 
 ### 7.6 Regeneration
 Preserves completed, skipped, and removed items and anything with `manualOverride`. Re-plans only the rest plus newly eligible candidates. No preview step in v1.
+
+Regeneration happens automatically after any task change, completion, void, or capacity override, and on demand from the Week screen, so the plan never drifts from the task list. Only weeks from the current one onwards are touched.
 
 ### 7.7 Idempotency
 Plan creation is idempotent on `weekStartDate` inside a transaction. Completing a planned item twice yields one completion. `lastCompletedAt` and `nextDueAt` are recomputed in the same transaction as any history change.

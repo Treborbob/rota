@@ -93,4 +93,73 @@ intentionally being missed. Archiving or skipping a task also marks its
 
 ## Planning
 
-See SPEC.md §7. Implemented in Phase 2; this section will be expanded then.
+Implemented in `lib/domain/planner.ts` (pure) and `lib/planning/` (database
+in, database out). Numbers live in `lib/domain/planner-config.ts` under
+`ALGORITHM_VERSION`; every plan records the version and inputs it was built
+with.
+
+### Capacity
+
+Each member has a minute budget per ISO weekday (Settings), and any single
+date can be overridden ("out Tuesday", "only 15 minutes tonight"). A slot is
+one member on one date with more than zero minutes, on or after today. There
+is no weekend rule: Friday to Sunday simply default to zero.
+
+### Candidates
+
+Active, unpaused tasks that are overdue, due on or before the Sunday of the
+week, or added to the week by hand ("pinned"). A deferral hides a task unless
+it is pinned. Undated one-offs are never planned; they live in Pick. Tasks
+due within their due-soon window after the week are a second, optional pass:
+placed only into genuinely spare time and never reported as overflow.
+
+### Score and order
+
+```
+score = priority (LOW 100, NORMAL 300, HIGH 600, ESSENTIAL 1000)
+      + days overdue × 20
+      + max(0, dueSoonDays − daysUntilDue) × 5
+      + 10 000 if pinned
+```
+
+Sorted by score, then due date, then estimated minutes (longest first), then
+task id. Same inputs always give the same plan.
+
+### Who
+
+- **Fixed**: that person only.
+- **Take turns**: whoever did not do it last; with no history, the lighter load.
+- **Whoever's free**: anyone.
+
+Load = minutes already placed this week + 25% of minutes completed in the
+previous 28 days. It is a tie-breaker, not the main lever, so the current
+week stays legible.
+
+### Where
+
+For each candidate in order, every slot the person(s) may use on an allowed
+weekday is ranked by projected utilisation (used + task) ÷ capacity, plus a
+penalty if the slot already holds a heavy job (30+ minutes, essential, or
+unpleasant). Slots on the task's preferred weekday are tried first, then
+slots on or before the due date, then everything. Ties break on lighter
+load, earlier date, member order. The task must fit; only an ESSENTIAL task
+may overflow a slot rather than be dropped.
+
+### Overflow reasons
+
+| Code | Meaning |
+| --- | --- |
+| NO_CAPACITY | Nothing left this week |
+| ASSIGNEE_UNAVAILABLE | The fixed person has no slots at all |
+| NO_ALLOWED_DAY | None of its allowed days have time |
+| FIXED_ASSIGNEE_OVERLOADED | The fixed person's slots are full |
+| TOO_LONG_FOR_ANY_SLOT | Longer than any single evening |
+
+### Regeneration
+
+A plan is created lazily the first time anyone opens the week, and
+regenerated whenever a task changes, a completion is recorded or voided, an
+override is set, or someone taps Re-plan. Regeneration keeps completed items,
+hand-moved items (`manualOverride`), skips and removals exactly where they
+are and plans everything else around them. Adding a task by hand pins it;
+pins are remembered in the plan's snapshot.
