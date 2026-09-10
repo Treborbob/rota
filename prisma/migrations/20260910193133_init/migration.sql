@@ -147,7 +147,7 @@ CREATE TABLE "task" (
     "preferredWeekday" INTEGER,
     "allowedWeekdays" INTEGER[] DEFAULT ARRAY[]::INTEGER[],
     "lastCompletedAt" TIMESTAMP(3),
-    "nextDueAt" TIMESTAMP(3),
+    "nextDueOn" DATE,
     "deferredUntil" DATE,
     "pausedAt" TIMESTAMP(3),
     "archivedAt" TIMESTAMP(3),
@@ -163,6 +163,8 @@ CREATE TABLE "task_completion" (
     "taskId" TEXT NOT NULL,
     "completedById" TEXT NOT NULL,
     "completedAt" TIMESTAMP(3) NOT NULL,
+    "previousDueOn" DATE,
+    "previousLastCompletedAt" TIMESTAMP(3),
     "actualMinutes" INTEGER,
     "note" TEXT,
     "source" "CompletionSource" NOT NULL,
@@ -196,7 +198,7 @@ CREATE TABLE "planned_task" (
     "assignedToId" TEXT,
     "estimatedMinutesSnapshot" INTEGER NOT NULL,
     "prioritySnapshot" "Priority" NOT NULL,
-    "dueAtSnapshot" TIMESTAMP(3),
+    "dueOnSnapshot" DATE,
     "scoreSnapshot" INTEGER NOT NULL,
     "explanationCode" TEXT NOT NULL,
     "sortOrder" INTEGER NOT NULL DEFAULT 0,
@@ -237,7 +239,7 @@ CREATE UNIQUE INDEX "capacity_override_userId_localDate_key" ON "capacity_overri
 CREATE INDEX "area_active_sortOrder_idx" ON "area"("active", "sortOrder");
 
 -- CreateIndex
-CREATE INDEX "task_archivedAt_pausedAt_nextDueAt_idx" ON "task"("archivedAt", "pausedAt", "nextDueAt");
+CREATE INDEX "task_archivedAt_pausedAt_nextDueOn_idx" ON "task"("archivedAt", "pausedAt", "nextDueOn");
 
 -- CreateIndex
 CREATE INDEX "task_areaId_idx" ON "task"("areaId");

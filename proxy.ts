@@ -24,5 +24,7 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   // Everything except the auth API, Next internals and static files.
-  matcher: ["/((?!api/auth|_next|manifest\\.webmanifest|icons|.*\\..*).*)"],
+  matcher: [
+    "/((?!api/auth|api/dev-login|_next|manifest\\.webmanifest|icons|.*\\..*).*)",
+  ],
 };

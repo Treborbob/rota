@@ -201,7 +201,8 @@ model Task {
   /// ISO weekdays the task may be placed on. Empty means any day.
   allowedWeekdays  Int[]            @default([])
   lastCompletedAt  DateTime?
-  nextDueAt        DateTime?
+  /// Local calendar date the task is next due. Null for one-offs with no date.
+  nextDueOn        DateTime?        @db.Date
   deferredUntil    DateTime?        @db.Date
   pausedAt         DateTime?
   archivedAt       DateTime?
@@ -211,7 +212,7 @@ model Task {
   completions  TaskCompletion[]
   plannedTasks PlannedTask[]
 
-  @@index([archivedAt, pausedAt, nextDueAt])
+  @@index([archivedAt, pausedAt, nextDueOn])
   @@index([areaId])
   @@map("task")
 }
@@ -233,6 +234,10 @@ model TaskCompletion {
   completedById String
   completedBy   User             @relation("CompletionCompletedBy", fields: [completedById], references: [id])
   completedAt   DateTime
+  /// The task's nextDueOn and lastCompletedAt immediately before this
+  /// completion, so a void can restore them exactly.
+  previousDueOn           DateTime? @db.Date
+  previousLastCompletedAt DateTime?
   plannedTask   PlannedTask?     @relation("PlannedTaskCompletion")
   actualMinutes Int?
   note          String?
@@ -286,7 +291,7 @@ model PlannedTask {
   assignedTo               User?            @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
   estimatedMinutesSnapshot Int
   prioritySnapshot         Priority
-  dueAtSnapshot            DateTime?
+  dueOnSnapshot            DateTime?        @db.Date
   scoreSnapshot            Int
   explanationCode          String
   sortOrder                Int              @default(0)
