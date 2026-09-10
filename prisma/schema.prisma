@@ -1,0 +1,303 @@
+// Rota — Prisma schema
+// Connection URLs live in prisma.config.ts (Prisma 7).
+// Timestamps are UTC instants; calendar dates use @db.Date and are local
+// (Europe/London) dates. Weekdays are ISO: Monday = 1 … Sunday = 7.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Better Auth tables (managed by better-auth; keep in sync with `auth generate`)
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id
+  name          String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+
+  weekdayCapacities WeekdayCapacity[]
+  capacityOverrides CapacityOverride[]
+  fixedTasks        Task[]            @relation("TaskFixedAssignee")
+  completions       TaskCompletion[]  @relation("CompletionCompletedBy")
+  voidedCompletions TaskCompletion[]  @relation("CompletionVoidedBy")
+  plannedTasks      PlannedTask[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ---------------------------------------------------------------------------
+// Household
+// ---------------------------------------------------------------------------
+
+model Household {
+  id                 String   @id @default(uuid())
+  name               String
+  timezone           String   @default("Europe/London")
+  locale             String   @default("en-GB")
+  dueSoonDaysDefault Int      @default(7)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("household")
+}
+
+/// Minutes a member normally has on each ISO weekday (1 = Monday … 7 = Sunday).
+model WeekdayCapacity {
+  id      String @id @default(uuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekday Int
+  minutes Int
+
+  @@unique([userId, weekday])
+  @@map("weekday_capacity")
+}
+
+/// A one-day exception: "out Tuesday" (0 minutes) or "only 15 minutes tonight".
+model CapacityOverride {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  localDate DateTime @db.Date
+  minutes   Int
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, localDate])
+  @@map("capacity_override")
+}
+
+// ---------------------------------------------------------------------------
+// Areas and tasks
+// ---------------------------------------------------------------------------
+
+model Area {
+  id        String   @id @default(uuid())
+  name      String
+  icon      String?
+  colour    String?
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tasks     Task[]
+
+  @@index([active, sortOrder])
+  @@map("area")
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  ESSENTIAL
+}
+
+enum TaskType {
+  RECURRING
+  ONE_OFF
+}
+
+enum AssignmentMode {
+  FIXED
+  ALTERNATE
+  BALANCED
+}
+
+enum RecurrenceUnit {
+  DAY
+  WEEK
+  MONTH
+  YEAR
+}
+
+enum RecurrenceAnchor {
+  COMPLETION
+  SCHEDULE
+}
+
+model Task {
+  id               String           @id @default(uuid())
+  areaId           String
+  area             Area             @relation(fields: [areaId], references: [id])
+  name             String
+  notes            String?
+  estimatedMinutes Int
+  priority         Priority         @default(NORMAL)
+  unpleasant       Boolean          @default(false)
+  taskType         TaskType         @default(RECURRING)
+  assignmentMode   AssignmentMode   @default(BALANCED)
+  fixedAssigneeId  String?
+  fixedAssignee    User?            @relation("TaskFixedAssignee", fields: [fixedAssigneeId], references: [id], onDelete: SetNull)
+  recurrenceValue  Int?
+  recurrenceUnit   RecurrenceUnit?
+  recurrenceAnchor RecurrenceAnchor @default(COMPLETION)
+  dueSoonDays      Int?
+  preferredWeekday Int?
+  /// ISO weekdays the task may be placed on. Empty means any day.
+  allowedWeekdays  Int[]            @default([])
+  lastCompletedAt  DateTime?
+  nextDueAt        DateTime?
+  deferredUntil    DateTime?        @db.Date
+  pausedAt         DateTime?
+  archivedAt       DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  completions  TaskCompletion[]
+  plannedTasks PlannedTask[]
+
+  @@index([archivedAt, pausedAt, nextDueAt])
+  @@index([areaId])
+  @@map("task")
+}
+
+// ---------------------------------------------------------------------------
+// History
+// ---------------------------------------------------------------------------
+
+enum CompletionSource {
+  PLAN
+  PICK
+  MANUAL
+}
+
+model TaskCompletion {
+  id            String           @id @default(uuid())
+  taskId        String
+  task          Task             @relation(fields: [taskId], references: [id])
+  completedById String
+  completedBy   User             @relation("CompletionCompletedBy", fields: [completedById], references: [id])
+  completedAt   DateTime
+  plannedTask   PlannedTask?     @relation("PlannedTaskCompletion")
+  actualMinutes Int?
+  note          String?
+  source        CompletionSource
+  voidedAt      DateTime?
+  voidedById    String?
+  voidedBy      User?            @relation("CompletionVoidedBy", fields: [voidedById], references: [id])
+  voidReason    String?
+  createdAt     DateTime         @default(now())
+
+  @@index([taskId, completedAt])
+  @@index([completedById, completedAt])
+  @@index([completedAt])
+  @@map("task_completion")
+}
+
+// ---------------------------------------------------------------------------
+// Planning
+// ---------------------------------------------------------------------------
+
+model WeeklyPlan {
+  id               String        @id @default(uuid())
+  weekStartDate    DateTime      @db.Date
+  generatedAt      DateTime
+  algorithmVersion String
+  inputSnapshot    Json
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  items            PlannedTask[]
+
+  @@unique([weekStartDate])
+  @@map("weekly_plan")
+}
+
+enum PlannedTaskState {
+  PLANNED
+  COMPLETED
+  SKIPPED
+  REMOVED
+  UNSCHEDULED
+}
+
+model PlannedTask {
+  id                       String           @id @default(uuid())
+  weeklyPlanId             String
+  weeklyPlan               WeeklyPlan       @relation(fields: [weeklyPlanId], references: [id], onDelete: Cascade)
+  taskId                   String
+  task                     Task             @relation(fields: [taskId], references: [id])
+  plannedDate              DateTime?        @db.Date
+  assignedToId             String?
+  assignedTo               User?            @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+  estimatedMinutesSnapshot Int
+  prioritySnapshot         Priority
+  dueAtSnapshot            DateTime?
+  scoreSnapshot            Int
+  explanationCode          String
+  sortOrder                Int              @default(0)
+  state                    PlannedTaskState @default(PLANNED)
+  completionId             String?          @unique
+  completion               TaskCompletion?  @relation("PlannedTaskCompletion", fields: [completionId], references: [id])
+  manualOverride           Boolean          @default(false)
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+
+  @@index([weeklyPlanId, plannedDate])
+  @@index([taskId])
+  @@map("planned_task")
+}
