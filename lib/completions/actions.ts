@@ -8,6 +8,7 @@ import {
   success,
 } from "@/lib/action-state";
 import { db } from "@/lib/db";
+import { replanUpcomingWeeks } from "@/lib/planning/generate";
 import { requireUser } from "@/lib/session";
 import { voidCompletion } from "@/lib/tasks/complete";
 import { formDataToObject, voidCompletionSchema } from "@/lib/validation/task";
@@ -36,6 +37,7 @@ export async function voidCompletionAction(
       select: { taskId: true },
     });
   });
+  await replanUpcomingWeeks();
   for (const p of [
     "/",
     "/week",

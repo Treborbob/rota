@@ -22,6 +22,7 @@ import {
 } from "@/lib/domain/recurrence";
 import { userMessage } from "@/lib/errors";
 import type { Prisma } from "@/lib/generated/prisma/client";
+import { replanUpcomingWeeks } from "@/lib/planning/generate";
 import { requireUser } from "@/lib/session";
 import { recordCompletion } from "@/lib/tasks/complete";
 import { recurrenceOf } from "@/lib/tasks/view";
@@ -33,7 +34,9 @@ import {
   taskInputSchema,
 } from "@/lib/validation/task";
 
-function revalidateTaskPaths(taskId?: string) {
+/** Keep the plan honest, then refresh every screen that shows tasks. */
+async function afterTaskChange(taskId?: string) {
+  await replanUpcomingWeeks();
   for (const p of ["/", "/week", "/tasks", "/pick", "/history", "/areas"]) {
     revalidatePath(p);
   }
@@ -103,7 +106,7 @@ export async function createTask(
     );
   }
   const task = await db.task.create({ data: taskDataFrom(parsed.data) });
-  revalidateTaskPaths(task.id);
+  await afterTaskChange(task.id);
   redirect(`/tasks/${task.id}`);
 }
 
@@ -126,7 +129,7 @@ export async function updateTask(
     delete (data as { lastCompletedAt?: unknown }).lastCompletedAt;
   }
   await db.task.update({ where: { id: taskId }, data });
-  revalidateTaskPaths(taskId);
+  await afterTaskChange(taskId);
   redirect(`/tasks/${taskId}`);
 }
 
@@ -147,7 +150,7 @@ export async function duplicateTask(taskId: string): Promise<void> {
   const copy = await db.task.create({
     data: { ...rest, name: `${source.name} (copy)` },
   });
-  revalidateTaskPaths(copy.id);
+  await afterTaskChange(copy.id);
   redirect(`/tasks/${copy.id}/edit`);
 }
 
@@ -188,7 +191,7 @@ export async function completeTask(
   } catch (error) {
     return failure(userMessage(error, "Couldn't record that. Try again."));
   }
-  revalidateTaskPaths(taskId);
+  await afterTaskChange(taskId);
   return success("Done. Nice one.");
 }
 
@@ -210,7 +213,7 @@ export async function deferTask(
     where: { id: parsed.data.taskId },
     data: { deferredUntil: toDbDate(parsed.data.until) },
   });
-  revalidateTaskPaths(parsed.data.taskId);
+  await afterTaskChange(parsed.data.taskId);
   return success("Deferred.");
 }
 
@@ -220,7 +223,7 @@ export async function clearDeferral(taskId: string): Promise<ActionState> {
     where: { id: taskId },
     data: { deferredUntil: null },
   });
-  revalidateTaskPaths(taskId);
+  await afterTaskChange(taskId);
   return success("Back on the list.");
 }
 
@@ -230,7 +233,7 @@ export async function pauseTask(taskId: string): Promise<ActionState> {
     where: { id: taskId },
     data: { pausedAt: new Date(), deferredUntil: null },
   });
-  revalidateTaskPaths(taskId);
+  await afterTaskChange(taskId);
   return success("Paused. It won't be planned until you resume it.");
 }
 
@@ -247,7 +250,7 @@ export async function resumeTask(taskId: string): Promise<ActionState> {
       nextDueOn: current && current < today ? toDbDate(today) : task.nextDueOn,
     },
   });
-  revalidateTaskPaths(taskId);
+  await afterTaskChange(taskId);
   return success("Resumed.");
 }
 
@@ -274,7 +277,7 @@ export async function skipOccurrence(taskId: string): Promise<ActionState> {
       data: { state: "SKIPPED" },
     });
   });
-  revalidateTaskPaths(taskId);
+  await afterTaskChange(taskId);
   return success("Skipped this time round.");
 }
 
@@ -290,13 +293,13 @@ export async function archiveTask(taskId: string): Promise<ActionState> {
       data: { state: "REMOVED" },
     });
   });
-  revalidateTaskPaths(taskId);
+  await afterTaskChange(taskId);
   return success("Archived.");
 }
 
 export async function restoreTask(taskId: string): Promise<ActionState> {
   await requireUser();
   await db.task.update({ where: { id: taskId }, data: { archivedAt: null } });
-  revalidateTaskPaths(taskId);
+  await afterTaskChange(taskId);
   return success("Restored.");
 }
