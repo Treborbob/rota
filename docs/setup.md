@@ -48,13 +48,14 @@ pnpm dev
 | `ROTA_ALLOWED_EMAILS` | the Google addresses allowed in, comma-separated |
 | `ROTA_HOUSEHOLD_NAME` | shown on the sign-in page and in the sidebar; used once by the seed |
 
-The Neon connection strings come from the Neon console (project `rota`,
-Black Family org): *Connect → branch → copy*.
+The Neon connection strings come from the Neon console: *Connect → branch →
+copy*. Use the pooled string for `DATABASE_URL` and the unpooled one for
+`DIRECT_URL`.
 
 ## 3. Neon
 
-- Project: `rota`, org *Black Family*, region London (`aws-eu-west-2`),
-  Postgres 17.
+- One project (ours is `rota`, region London, Postgres 17) in a personal org,
+  separate from anything work-related.
 - Branches: `production` (default) and `dev`.
 - The free plan scales compute to zero after inactivity; the first request of
   an evening may take about half a second longer.

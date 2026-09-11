@@ -18,7 +18,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "db:seed:prod": "node --env-file=.env.production.local --import tsx prisma/seed.ts"
+    "db:seed:prod": "node --env-file=.env.production.local --import tsx prisma/seed.ts",
+    "db:seed:dev": "node --env-file=.env.local --import tsx prisma/seed-dev.ts"
   },
   "dependencies": {
     "@date-fns/tz": "^1.5.0",

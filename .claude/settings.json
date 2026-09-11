@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(pnpm check)",
+      "Bash(pnpm lint)",
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm test)",
+      "Bash(pnpm test:*)",
+      "Bash(pnpm build)",
+      "Bash(pnpm biome:*)",
+      "Bash(pnpm exec biome:*)",
+      "Bash(pnpm db:generate)",
+      "Bash(pnpm db:seed)",
+      "Bash(pnpm db:seed:dev)",
+      "Bash(pnpm prisma generate)",
+      "Bash(pnpm prisma migrate dev:*)",
+      "Bash(pnpm prisma migrate status)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(git blame:*)",
+      "Bash(gh issue view:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run watch:*)",
+      "Bash(vercel ls:*)",
+      "Bash(vercel inspect:*)",
+      "Bash(vercel logs:*)"
+    ],
+    "deny": [
+      "Bash(pnpm db:seed:prod:*)",
+      "Bash(pnpm prisma migrate reset:*)",
+      "Bash(pnpm prisma db push:*)",
+      "Bash(vercel env:*)",
+      "Bash(vercel deploy:*)",
+      "Bash(vercel --prod:*)",
+      "Bash(vercel domains:*)",
+      "Bash(vercel project:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Read(.env.production.local)",
+      "Read(.env.local)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/hooks/format-after-edit.mjs",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
