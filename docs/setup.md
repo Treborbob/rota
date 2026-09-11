@@ -74,9 +74,9 @@ Black Family org): *Connect → branch → copy*.
 4. Preview deployments are not authenticated targets: they build, but Google
    will refuse the callback because their hostnames are not registered.
    That is expected. Deploy from `main`.
-5. After the first deployment, run the seed once against production:
-   `DATABASE_URL=<prod pooled> pnpm db:seed` from your machine, or run it
-   from a Vercel one-off shell.
+5. After the first deployment, run the seed once against production from
+   your machine. `.env.production.local` (git-ignored) holds the production
+   values; `pnpm db:seed:prod` uses it.
 
 ## 5. First sign-in
 
