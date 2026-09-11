@@ -25,6 +25,13 @@ export const auth = betterAuth({
 
   emailAndPassword: { enabled: isDevLoginEnabled },
 
+  // Google verifies the email and the allowlist is email-based, so a Google
+  // sign-in may attach to an existing user with that email (e.g. one created
+  // by the dev login, or a future second provider).
+  account: {
+    accountLinking: { enabled: true, trustedProviders: ["google"] },
+  },
+
   socialProviders: {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID ?? "",
