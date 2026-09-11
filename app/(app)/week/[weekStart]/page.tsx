@@ -1,8 +1,14 @@
 import { notFound, redirect } from "next/navigation";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
+import { WeekNav } from "@/components/plan/week-nav";
 import { WeekView } from "@/components/plan/week-view";
-import { isLocalDate, startOfWeekLocal } from "@/lib/dates";
+import {
+  addDaysLocal,
+  formatLocalDate,
+  isLocalDate,
+  startOfWeekLocal,
+} from "@/lib/dates";
 import { currentWeekStart, getPlanView } from "@/lib/planning/queries";
 import { requireUser } from "@/lib/session";
 
@@ -20,12 +26,23 @@ export default async function WeekByStartPage({
 
   const plan = await getPlanView(monday);
   if (!plan) {
+    const title = `${formatLocalDate(monday, "d MMM")} – ${formatLocalDate(addDaysLocal(monday, 6), "d MMM")}`;
     return (
       <>
-        <PageHeader title="Week" description={monday} />
+        <PageHeader
+          title="Week"
+          description={title}
+          actions={
+            <WeekNav
+              previousWeekStart={addDaysLocal(monday, -7)}
+              nextWeekStart={addDaysLocal(monday, 7)}
+              isCurrentWeek={false}
+            />
+          }
+        />
         <EmptyState
           title="No plan for this week"
-          description="Past weeks without a plan stay empty."
+          description="Weeks that were never opened stay empty."
         />
       </>
     );

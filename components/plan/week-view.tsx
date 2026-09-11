@@ -1,5 +1,3 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { CapacityChip } from "@/components/plan/capacity-chip";
@@ -8,6 +6,7 @@ import {
   AddToWeekDialog,
   RegenerateButton,
 } from "@/components/plan/week-controls";
+import { WeekNav } from "@/components/plan/week-nav";
 import { Button } from "@/components/ui/button";
 import { formatLocalDate, fromDbDate, todayLocal } from "@/lib/dates";
 import { classifyDueState, describeDueState } from "@/lib/domain/due-state";
@@ -61,26 +60,11 @@ export async function WeekView({ plan }: { plan: PlanView }) {
         title={plan.isCurrentWeek ? "This week" : "Week"}
         description={title}
         actions={
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" asChild>
-              <Link
-                href={`/week/${plan.previousWeekStart}`}
-                aria-label="Previous week"
-              >
-                <ChevronLeft />
-              </Link>
-            </Button>
-            {!plan.isCurrentWeek ? (
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/week">This week</Link>
-              </Button>
-            ) : null}
-            <Button variant="ghost" size="icon" asChild>
-              <Link href={`/week/${plan.nextWeekStart}`} aria-label="Next week">
-                <ChevronRight />
-              </Link>
-            </Button>
-          </div>
+          <WeekNav
+            previousWeekStart={plan.previousWeekStart}
+            nextWeekStart={plan.nextWeekStart}
+            isCurrentWeek={plan.isCurrentWeek}
+          />
         }
       />
 
