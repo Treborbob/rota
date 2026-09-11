@@ -1,17 +1,8 @@
-# Contributing to Rota
+# Working on Rota
 
-Thanks for taking an interest. Rota is a small, opinionated app, so the bar for
-a change is "does this make a household's evenings simpler?" rather than "is
-this a feature someone might want?".
-
-## Before you start
-
-- **Bug fixes, accessibility and polish**: go straight ahead.
-- **Behaviour changes or new features**: open an issue first and describe the
-  problem you're solving. The principles in the README and the rules in
-  [docs/domain.md](docs/domain.md) are the yardstick. Things listed as
-  non-goals there (gamification, generic project management, AI scheduling)
-  won't be merged.
+Rota is a personal project and I'm the only committer. I don't accept pull
+requests, but forks are welcome and bug reports via issues are appreciated.
+Everything below is for anyone setting up their own fork, and for me.
 
 ## Local setup
 
@@ -49,17 +40,15 @@ To sign in without configuring Google, set `ROTA_DEV_LOGIN=true` in
 pnpm check   # biome lint + format, tsc, vitest
 ```
 
-Please run it before opening a pull request. CI runs the same thing.
+CI runs the same thing on every push.
 
-## Pull requests
+## Changing things
 
-- One logical change per PR, with a short description of *why*.
+- One logical change per commit, with a short message saying *why*.
 - Update `docs/domain.md` if you change a rule, and `SPEC.md` if you change
   the agreed scope.
-- Screenshots for anything visual, ideally at phone width.
 
 ## Schema changes
 
 Use `pnpm db:migrate` to create a Prisma migration; never `db push`. Keep
-migrations additive where possible. Anything destructive needs a clear note
-in the PR.
+migrations additive where possible.

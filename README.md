@@ -13,8 +13,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-blue.svg" alt="MIT licence"></a>
   <img src="https://img.shields.io/badge/Next.js-16-black?logo=next.js" alt="Next.js 16">
   <img src="https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white" alt="TypeScript strict">
-  <img src="https://img.shields.io/badge/planner-deterministic-e0a36a" alt="Deterministic planner">
-  <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-welcome-6fb5ad.svg" alt="PRs welcome"></a>
+  <img src="https://img.shields.io/badge/contributions-not%20accepted-lightgrey" alt="Contributions not accepted">
 </p>
 
 ---
@@ -95,7 +94,7 @@ The recurrence engine and planner are pure functions covered by table-driven tes
 
 ## Contributing
 
-Issues and pull requests are welcome, with one caveat: Rota is deliberately opinionated and small. Bug fixes, accessibility, and polish are always wanted. New features should fit the principles above; if you're unsure, open an issue first. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to work on it.
+Rota is a personal project and I'm the only one working on it. Forks are very welcome, and so are bug reports via issues, but I'm not accepting pull requests. If you want to take it somewhere, fork it and make it yours. See [CONTRIBUTING.md](CONTRIBUTING.md) if you're setting up a fork.
 
 Things on the maybe-later list: passkeys, web push reminders, an offline completion queue, a holiday mode, data export.
 
