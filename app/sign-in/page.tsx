@@ -1,5 +1,6 @@
 import { LogoMark } from "@/components/logo";
 import { SignInButton } from "@/components/sign-in-button";
+import { db } from "@/lib/db";
 
 const ERROR_MESSAGES: Record<string, string> = {
   not_allowed: "That Google account isn't on the Rota allowlist.",
@@ -13,7 +14,10 @@ const ERROR_MESSAGES: Record<string, string> = {
 export default async function SignInPage({
   searchParams,
 }: PageProps<"/sign-in">) {
-  const params = await searchParams;
+  const [params, household] = await Promise.all([
+    searchParams,
+    db.household.findFirst({ select: { name: true } }).catch(() => null),
+  ]);
   const code = typeof params.error === "string" ? params.error : null;
   const description =
     typeof params.error_description === "string"
@@ -30,7 +34,10 @@ export default async function SignInPage({
           <LogoMark className="size-16" />
           <h1 className="font-semibold text-3xl tracking-tight">Rota</h1>
           <p className="text-muted-foreground">
-            The Black family chore rota. Members only.
+            {household
+              ? `${household.name} chore rota.`
+              : "Household chore rota."}{" "}
+            Members only.
           </p>
         </div>
 

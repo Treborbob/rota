@@ -45,7 +45,8 @@ pnpm dev
 | `BETTER_AUTH_SECRET` | `openssl rand -base64 32` |
 | `BETTER_AUTH_URL` | `http://localhost:3000` |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | from step 1 |
-| `ROTA_ALLOWED_EMAILS` | the two Google addresses, comma-separated |
+| `ROTA_ALLOWED_EMAILS` | the Google addresses allowed in, comma-separated |
+| `ROTA_HOUSEHOLD_NAME` | shown on the sign-in page and in the sidebar; used once by the seed |
 
 The Neon connection strings come from the Neon console (project `rota`,
 Black Family org): *Connect → branch → copy*.

@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     default: "Rota",
     template: "%s · Rota",
   },
-  description: "The Black family chore rota.",
+  description: "A calm, private household chore rota.",
   applicationName: "Rota",
   appleWebApp: {
     capable: true,

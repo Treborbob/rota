@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Rota",
     short_name: "Rota",
-    description: "The Black family chore rota.",
+    description: "A calm, private household chore rota.",
     start_url: "/",
     display: "standalone",
     background_color: "#f5f1ea",

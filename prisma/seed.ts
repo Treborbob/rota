@@ -6,7 +6,7 @@
  */
 import { db } from "../lib/db";
 
-const HOUSEHOLD_NAME = "Black Family";
+const HOUSEHOLD_NAME = process.env.ROTA_HOUSEHOLD_NAME?.trim() || "Home";
 
 const AREAS: Array<{ name: string; icon: string; colour: string }> = [
   { name: "Kitchen", icon: "cooking-pot", colour: "amber" },
