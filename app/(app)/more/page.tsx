@@ -1,7 +1,10 @@
 import { ChevronRight, History, LayoutGrid, Settings } from "lucide-react";
 import Link from "next/link";
+import { MemberAvatar } from "@/components/member-avatar";
 import { PageHeader } from "@/components/page-header";
 import { SignOutButton } from "@/components/sign-out-button";
+import { toneForMember } from "@/lib/member-style";
+import { listMembers } from "@/lib/members";
 import { requireUser } from "@/lib/session";
 
 const LINKS = [
@@ -12,6 +15,7 @@ const LINKS = [
 
 export default async function MorePage() {
   const user = await requireUser();
+  const members = await listMembers();
 
   return (
     <>
@@ -38,7 +42,12 @@ export default async function MorePage() {
       </ul>
 
       <div className="mt-8 flex items-center justify-between gap-4 rounded-xl border px-4 py-4">
-        <div className="min-w-0">
+        <MemberAvatar
+          name={user.name}
+          tone={toneForMember(members, user.id)}
+          size="lg"
+        />
+        <div className="min-w-0 flex-1">
           <p className="truncate font-medium">{user.name}</p>
           <p className="truncate text-muted-foreground text-sm">{user.email}</p>
         </div>

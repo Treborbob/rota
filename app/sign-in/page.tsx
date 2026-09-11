@@ -1,3 +1,4 @@
+import { LogoMark } from "@/components/logo";
 import { SignInButton } from "@/components/sign-in-button";
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -22,7 +23,8 @@ export default async function SignInPage({
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center px-6 py-12">
       <div className="w-full max-w-sm space-y-8">
-        <div className="space-y-2 text-center">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <LogoMark className="size-16" />
           <h1 className="font-semibold text-3xl tracking-tight">Rota</h1>
           <p className="text-muted-foreground">
             The Black family chore rota. Members only.

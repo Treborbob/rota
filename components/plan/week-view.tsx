@@ -17,6 +17,7 @@ import {
 } from "@/lib/domain/planner";
 import { listAddableTasks, type PlanView } from "@/lib/planning/queries";
 import { getDueSoonDaysDefault } from "@/lib/tasks/queries";
+import { formatMinutes } from "@/lib/tasks/view";
 import { cn } from "@/lib/utils";
 
 export async function WeekView({ plan }: { plan: PlanView }) {
@@ -52,12 +53,13 @@ export async function WeekView({ plan }: { plan: PlanView }) {
     .map((d) => ({ date: d.date, label: d.label }));
 
   const title = `${formatLocalDate(plan.weekStart, "d MMM")} – ${formatLocalDate(plan.weekEnd, "d MMM")}`;
+  const doneMinutes = plan.done.reduce((s, i) => s + i.minutes, 0);
 
   return (
     <>
       <PageHeader
-        title="Week"
-        description={`${title} · ${plan.totalPlanned} of ${plan.totalCapacity} min planned`}
+        title={plan.isCurrentWeek ? "This week" : "Week"}
+        description={title}
         actions={
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="icon" asChild>
@@ -87,6 +89,33 @@ export async function WeekView({ plan }: { plan: PlanView }) {
         <AddToWeekDialog weekStart={plan.weekStart} tasks={addableViews} />
       </div>
 
+      <div className="mb-6 flex items-center justify-between gap-6 rounded-2xl bg-gradient-to-r from-rota-orange-soft to-rota-teal-soft px-5 py-4">
+        <div className="min-w-0">
+          <p className="font-semibold text-xl tabular-nums tracking-tight">
+            {formatMinutes(plan.totalPlanned)} planned
+          </p>
+          <p className="text-muted-foreground text-sm">
+            {formatMinutes(doneMinutes)} done ·{" "}
+            {formatMinutes(plan.totalCapacity)} available
+          </p>
+        </div>
+        <div
+          className="h-2 w-40 shrink-0 overflow-hidden rounded-full bg-background/50"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={plan.totalPlanned}
+          aria-valuenow={doneMinutes}
+          aria-label="Minutes done this week"
+        >
+          <div
+            className="h-full rounded-full bg-rota-orange"
+            style={{
+              width: `${plan.totalPlanned ? Math.min(100, (doneMinutes / plan.totalPlanned) * 100) : 0}%`,
+            }}
+          />
+        </div>
+      </div>
+
       {visibleDays.length === 0 ? (
         <EmptyState
           title="No evenings with any time this week"
@@ -99,8 +128,8 @@ export async function WeekView({ plan }: { plan: PlanView }) {
               key={day.date}
               aria-labelledby={`day-${day.date}`}
               className={cn(
-                "rounded-xl border p-3",
-                day.isToday && "border-primary",
+                "rounded-2xl border bg-card/40 p-3",
+                day.isToday && "border-rota-orange ring-1 ring-rota-orange",
                 day.isPast && "opacity-70",
               )}
             >

@@ -13,24 +13,19 @@ const STYLE: Record<
   DueState["kind"],
   { icon: typeof Clock; className: string }
 > = {
-  OVERDUE: {
-    icon: AlertCircle,
-    className:
-      "bg-orange-100 text-orange-950 dark:bg-orange-500/20 dark:text-orange-100",
+  OVERDUE: { icon: AlertCircle, className: "bg-rota-rose-soft text-rota-rose" },
+  DUE: { icon: CircleDot, className: "bg-rota-orange-soft text-rota-orange" },
+  DUE_SOON: { icon: Clock, className: "bg-rota-teal-soft text-rota-teal" },
+  NOT_DUE: { icon: CalendarClock, className: "bg-muted text-muted-foreground" },
+  ANYTIME: { icon: Shuffle, className: "bg-muted text-muted-foreground" },
+  DEFERRED: {
+    icon: CalendarClock,
+    className: "bg-muted text-muted-foreground",
   },
-  DUE: {
-    icon: CircleDot,
-    className:
-      "bg-amber-100 text-amber-950 dark:bg-amber-500/20 dark:text-amber-100",
-  },
-  DUE_SOON: { icon: Clock, className: "bg-muted text-foreground" },
-  NOT_DUE: { icon: CalendarClock, className: "text-muted-foreground" },
-  ANYTIME: { icon: Shuffle, className: "text-muted-foreground" },
-  DEFERRED: { icon: CalendarClock, className: "text-muted-foreground" },
-  PAUSED: { icon: PauseCircle, className: "text-muted-foreground" },
+  PAUSED: { icon: PauseCircle, className: "bg-muted text-muted-foreground" },
 };
 
-/** Due state as icon + words. Never colour alone. */
+/** Due state as icon + words in a tinted chip. Never colour alone. */
 export function DueBadge({
   state,
   label,
@@ -44,7 +39,7 @@ export function DueBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs",
+        "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs",
         tone,
         className,
       )}

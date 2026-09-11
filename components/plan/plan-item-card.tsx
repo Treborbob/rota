@@ -14,6 +14,7 @@ import { useCallback, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { AreaChip } from "@/components/area-chip";
 import { FormField } from "@/components/form-field";
+import { MemberAvatar } from "@/components/member-avatar";
 import { PendingButton } from "@/components/pending-button";
 import {
   AlertDialog,
@@ -39,6 +40,7 @@ import {
 import { NativeSelect } from "@/components/ui/native-select";
 import { useToastAction } from "@/components/use-action-toast";
 import type { ActionState } from "@/lib/action-state";
+import { toneForMember } from "@/lib/member-style";
 import type { Member } from "@/lib/members";
 import {
   completePlannedItem,
@@ -83,23 +85,34 @@ export function PlanItemCard({
   return (
     <li
       className={cn(
-        "rounded-lg border bg-card",
+        "rounded-xl border bg-card",
         done && "opacity-60",
         pending && "opacity-70",
       )}
     >
-      <div className="flex items-center gap-2 p-2 pl-3">
-        <Button
-          size={compact ? "icon" : "icon-lg"}
-          variant={done ? "secondary" : "default"}
+      <div className="flex items-center gap-1 p-1.5 pr-2">
+        <button
+          type="button"
           aria-label={done ? `${item.name} is done` : `Mark ${item.name} done`}
           aria-pressed={done}
           disabled={done || pending}
           onClick={() => run(() => completePlannedItem(item.id))}
-          className="shrink-0 rounded-full"
+          className={cn(
+            "flex size-11 shrink-0 items-center justify-center rounded-lg focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2",
+            "disabled:cursor-default",
+          )}
         >
-          <Check />
-        </Button>
+          <span
+            className={cn(
+              "flex size-6 items-center justify-center rounded-md border-2 transition-colors",
+              done
+                ? "border-rota-orange bg-rota-orange text-primary-foreground"
+                : "border-muted-foreground/50 hover:border-rota-orange",
+            )}
+          >
+            {done ? <Check className="size-4" strokeWidth={3} /> : null}
+          </span>
+        </button>
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
@@ -125,7 +138,14 @@ export function PlanItemCard({
               <AreaChip area={item.area} />
               <span className="tabular-nums">{item.minutesLabel}</span>
               {!compact && item.assignedTo ? (
-                <span>· {item.assignedTo.name.split(" ")[0]}</span>
+                <span className="inline-flex items-center gap-1">
+                  <MemberAvatar
+                    name={item.assignedTo.name}
+                    tone={toneForMember(members, item.assignedTo.id)}
+                    size="xs"
+                  />
+                  {item.assignedTo.name.split(" ")[0]}
+                </span>
               ) : null}
             </span>
           </span>
