@@ -4,6 +4,7 @@ import { SignInButton } from "@/components/sign-in-button";
 const ERROR_MESSAGES: Record<string, string> = {
   not_allowed: "That Google account isn't on the Rota allowlist.",
   email_not_verified: "Google hasn't verified that email address yet.",
+  google_email_unverified: "Google hasn't verified that email address yet.",
   access_denied: "Google sign-in was cancelled.",
   account_not_linked:
     "That email already has an account here that isn't linked to Google.",

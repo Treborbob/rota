@@ -42,8 +42,6 @@ export const auth = betterAuth({
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID ?? "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
-      // Google reports a trustworthy email_verified claim; insist on it.
-      requireEmailVerification: true,
       prompt: "select_account",
     },
   },
@@ -55,7 +53,14 @@ export const auth = betterAuth({
     // Runs before a user is created, before an account is linked, and on
     // every sign-in of an existing user with the fresh provider email.
     // This is the allowlist. Anyone not on it never gets a row.
-    validateUserInfo: ({ user }) => {
+    validateUserInfo: ({ user, source }) => {
+      // Google reports a trustworthy email_verified claim; insist on it.
+      if (source.oauth && user.emailVerified === false) {
+        return {
+          error: "google_email_unverified",
+          errorDescription: "Google hasn't verified that email address.",
+        };
+      }
       if (!isAllowedEmail(user.email)) {
         return {
           error: "not_allowed",

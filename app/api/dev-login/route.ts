@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { isAllowedEmail, normaliseEmail } from "@/lib/allowlist";
 import { auth, isDevLoginEnabled } from "@/lib/auth";
+import { db } from "@/lib/db";
 
 /**
  * GET /api/dev-login?email=<allowlisted>&name=<display name>
@@ -31,6 +32,11 @@ export async function GET(request: NextRequest) {
     response = await auth.api.signUpEmail({
       body: { email, password: DEV_PASSWORD, name },
       asResponse: true,
+    });
+    // Dev users are allowlisted by definition; don't leave them "unverified".
+    await db.user.updateMany({
+      where: { email },
+      data: { emailVerified: true },
     });
   }
 
