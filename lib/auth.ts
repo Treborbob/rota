@@ -29,7 +29,13 @@ export const auth = betterAuth({
   // sign-in may attach to an existing user with that email (e.g. one created
   // by the dev login, or a future second provider).
   account: {
-    accountLinking: { enabled: true, trustedProviders: ["google"] },
+    accountLinking: {
+      enabled: true,
+      trustedProviders: ["google"],
+      // Local users only ever come from the allowlist, so an unverified
+      // local flag (e.g. the dev login) mustn't block a verified Google link.
+      requireLocalEmailVerified: false,
+    },
   },
 
   socialProviders: {
