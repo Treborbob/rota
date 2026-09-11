@@ -7,7 +7,6 @@ import {
   RegenerateButton,
 } from "@/components/plan/week-controls";
 import { WeekNav } from "@/components/plan/week-nav";
-import { Button } from "@/components/ui/button";
 import { formatLocalDate, fromDbDate, todayLocal } from "@/lib/dates";
 import { classifyDueState, describeDueState } from "@/lib/domain/due-state";
 import {
