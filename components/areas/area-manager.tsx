@@ -158,6 +158,7 @@ export function AreaManager({ areas }: { areas: AreaRow[] }) {
       </form>
 
       <DndContext
+        id="areas-sortable"
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragEnd={onDragEnd}
