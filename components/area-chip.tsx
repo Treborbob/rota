@@ -2,17 +2,22 @@ import { cn } from "cn";
 import {
   ArrowDownToLine,
   ArrowUpToLine,
+  Baby,
   Bath,
   Bed,
   BedDouble,
+  Car,
   CookingPot,
   DoorOpen,
+  Flower,
   House,
   type LucideIcon,
   Monitor,
+  PawPrint,
   Sofa,
   Tag,
   Trees,
+  Warehouse,
   WashingMachine,
 } from "lucide-react";
 import { areaColourClass } from "@/lib/area-style";
@@ -30,6 +35,12 @@ const ICONS: Record<string, LucideIcon> = {
   trees: Trees,
   "arrow-up-to-line": ArrowUpToLine,
   "arrow-down-to-line": ArrowDownToLine,
+  car: Car,
+  "paw-print": PawPrint,
+  flower: Flower,
+  warehouse: Warehouse,
+  baby: Baby,
+  tag: Tag,
 };
 
 export function AreaIcon({

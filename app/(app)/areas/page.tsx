@@ -1,14 +1,17 @@
 import { AreaManager } from "@/components/areas/area-manager";
 import { PageHeader } from "@/components/page-header";
+import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { listAreas, listTasks } from "@/lib/tasks/queries";
 
 export default async function AreasPage() {
   await requireUser();
-  const [areas, tasks] = await Promise.all([
+  const [areas, tasks, everUsed] = await Promise.all([
     listAreas(true),
     listTasks({ status: "active" }),
+    db.task.groupBy({ by: ["areaId"], _count: { _all: true } }),
   ]);
+  const usedIds = new Set(everUsed.map((g) => g.areaId));
 
   const rows = areas.map((area) => {
     const inArea = tasks.filter((t) => t.area.id === area.id);
@@ -18,6 +21,7 @@ export default async function AreasPage() {
       icon: area.icon,
       colour: area.colour,
       active: area.active,
+      everUsed: usedIds.has(area.id),
       taskCount: inArea.length,
       dueCount: inArea.filter((t) =>
         ["OVERDUE", "DUE", "DUE_SOON"].includes(t.dueState.kind),

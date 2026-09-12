@@ -7,14 +7,25 @@ import {
   ArrowUp,
   Pencil,
   Plus,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { AreaChip } from "@/components/area-chip";
+import { AreaChip, AreaIcon } from "@/components/area-chip";
 import { FormField } from "@/components/form-field";
 import { PendingButton } from "@/components/pending-button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,15 +36,20 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import { useToastAction } from "@/components/use-action-toast";
 import type { ActionState } from "@/lib/action-state";
+import { AREA_ICONS } from "@/lib/area-icons";
+import { AREA_COLOUR_KEYS, areaColourClass } from "@/lib/area-style";
 import {
   archiveArea,
   createArea,
+  deleteArea,
   moveArea,
-  renameArea,
   restoreArea,
+  updateArea,
 } from "@/lib/areas/actions";
+import { cn } from "@/lib/utils";
 
 export type AreaRow = {
   id: string;
@@ -41,13 +57,13 @@ export type AreaRow = {
   icon: string | null;
   colour: string | null;
   active: boolean;
+  everUsed: boolean;
   taskCount: number;
   dueCount: number;
   overdueCount: number;
 };
 
 export function AreaManager({ areas }: { areas: AreaRow[] }) {
-  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
   const onCreated = useCallback(() => formRef.current?.reset(), []);
@@ -58,7 +74,6 @@ export function AreaManager({ areas }: { areas: AreaRow[] }) {
       const result = await action();
       if (result?.ok) {
         if (result.message) toast.success(result.message);
-        router.refresh();
       } else if (result?.message) {
         toast.error(result.message);
       }
@@ -93,7 +108,7 @@ export function AreaManager({ areas }: { areas: AreaRow[] }) {
 
       <ul className="divide-y rounded-xl border">
         {active.map((area, i) => (
-          <li key={area.id} className="flex items-center gap-2 px-3 py-2">
+          <li key={area.id} className="flex items-center gap-1 px-3 py-2">
             <div className="min-w-0 flex-1">
               <Link
                 href={`/tasks?area=${area.id}`}
@@ -125,16 +140,48 @@ export function AreaManager({ areas }: { areas: AreaRow[] }) {
             >
               <ArrowDown />
             </Button>
-            <RenameDialog areaId={area.id} name={area.name} />
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={`Archive ${area.name}`}
-              disabled={pending}
-              onClick={() => run(() => archiveArea(area.id))}
-            >
-              <Archive />
-            </Button>
+            <EditAreaDialog area={area} />
+            {area.everUsed ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`Archive ${area.name}`}
+                disabled={pending}
+                onClick={() => run(() => archiveArea(area.id))}
+              >
+                <Archive />
+              </Button>
+            ) : (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Delete ${area.name}`}
+                    disabled={pending}
+                  >
+                    <Trash2 />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete {area.name}?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      It has never had a task, so there is no history to keep.
+                      This can't be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Keep it</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => run(() => deleteArea(area.id))}
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </li>
         ))}
       </ul>
@@ -169,11 +216,13 @@ export function AreaManager({ areas }: { areas: AreaRow[] }) {
   );
 }
 
-function RenameDialog({ areaId, name }: { areaId: string; name: string }) {
+function EditAreaDialog({ area }: { area: AreaRow }) {
   const [open, setOpen] = useState(false);
+  const [icon, setIcon] = useState(area.icon ?? "tag");
+  const [colour, setColour] = useState(area.colour ?? "");
   const action = useCallback(
-    (prev: ActionState, fd: FormData) => renameArea(areaId, prev, fd),
-    [areaId],
+    (prev: ActionState, fd: FormData) => updateArea(area.id, prev, fd),
+    [area.id],
   );
   const onSuccess = useCallback(() => setOpen(false), []);
   const [state, formAction] = useToastAction(action, onSuccess);
@@ -181,28 +230,71 @@ function RenameDialog({ areaId, name }: { areaId: string; name: string }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label={`Rename ${name}`}>
+        <Button variant="ghost" size="icon" aria-label={`Edit ${area.name}`}>
           <Pencil />
         </Button>
       </DialogTrigger>
       <DialogContent>
         <form action={formAction} className="space-y-5">
           <DialogHeader>
-            <DialogTitle>Rename area</DialogTitle>
+            <DialogTitle>Edit area</DialogTitle>
           </DialogHeader>
           <FormField
-            id={`rename-${areaId}`}
+            id={`area-name-${area.id}`}
             label="Name"
             error={state?.fieldErrors?.name}
           >
             <Input
-              id={`rename-${areaId}`}
+              id={`area-name-${area.id}`}
               name="name"
-              defaultValue={name}
+              defaultValue={area.name}
               required
               maxLength={60}
             />
           </FormField>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField id={`area-icon-${area.id}`} label="Icon">
+              <NativeSelect
+                id={`area-icon-${area.id}`}
+                name="icon"
+                value={icon}
+                onChange={(e) => setIcon(e.target.value)}
+              >
+                {AREA_ICONS.map((i) => (
+                  <option key={i.key} value={i.key}>
+                    {i.label}
+                  </option>
+                ))}
+              </NativeSelect>
+            </FormField>
+            <FormField id={`area-colour-${area.id}`} label="Colour">
+              <NativeSelect
+                id={`area-colour-${area.id}`}
+                name="colour"
+                value={colour}
+                onChange={(e) => setColour(e.target.value)}
+              >
+                <option value="">None</option>
+                {AREA_COLOUR_KEYS.map((c) => (
+                  <option key={c} value={c}>
+                    {c[0].toUpperCase() + c.slice(1)}
+                  </option>
+                ))}
+              </NativeSelect>
+            </FormField>
+          </div>
+          <p className="text-muted-foreground text-sm">
+            Preview:{" "}
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-medium text-xs",
+                areaColourClass(colour || null),
+              )}
+            >
+              <AreaIcon icon={icon} className="size-3" />
+              {area.name}
+            </span>
+          </p>
           <DialogFooter>
             <Button
               type="button"

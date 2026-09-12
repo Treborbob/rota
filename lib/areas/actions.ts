@@ -8,6 +8,8 @@ import {
   fieldErrorsFrom,
   success,
 } from "@/lib/action-state";
+import { AREA_ICON_KEYS } from "@/lib/area-icons";
+import { AREA_COLOUR_KEYS } from "@/lib/area-style";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { formDataToObject } from "@/lib/validation/task";
@@ -41,22 +43,47 @@ export async function createArea(
   return success("Area added.");
 }
 
-export async function renameArea(
+const areaSchema = z.object({
+  name: z.string().trim().min(1, "Give it a name").max(60),
+  icon: z
+    .string()
+    .transform((v) => (AREA_ICON_KEYS.includes(v) ? v : null))
+    .nullable()
+    .default(null),
+  colour: z
+    .string()
+    .transform((v) => (AREA_COLOUR_KEYS.includes(v) ? v : null))
+    .nullable()
+    .default(null),
+});
+
+export async function updateArea(
   areaId: string,
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
   await requireUser();
-  const parsed = nameSchema.safeParse(formDataToObject(formData));
+  const parsed = areaSchema.safeParse(formDataToObject(formData));
   if (!parsed.success) {
     return failure("Give it a name.", fieldErrorsFrom(parsed.error));
   }
-  await db.area.update({
-    where: { id: areaId },
-    data: { name: parsed.data.name },
-  });
+  await db.area.update({ where: { id: areaId }, data: parsed.data });
   revalidate();
-  return success("Renamed.");
+  return success("Saved.");
+}
+
+/** Only for areas that have never had a task; otherwise archive keeps history intact. */
+export async function deleteArea(areaId: string): Promise<ActionState> {
+  await requireUser();
+  const everUsed = await db.task.count({ where: { areaId } });
+  if (everUsed > 0) {
+    return failure(
+      "This area has had tasks, so its history matters. Archive it instead.",
+    );
+  }
+  await db.area.delete({ where: { id: areaId } });
+  revalidate();
+  return success("Area deleted.");
 }
 
 /** Swap sort order with the neighbour above or below. */
