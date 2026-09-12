@@ -1,5 +1,7 @@
 import { cn } from "cn";
 import {
+  ArrowDownToLine,
+  ArrowUpToLine,
   Bath,
   Bed,
   BedDouble,
@@ -26,6 +28,8 @@ const ICONS: Record<string, LucideIcon> = {
   "washing-machine": WashingMachine,
   house: House,
   trees: Trees,
+  "arrow-up-to-line": ArrowUpToLine,
+  "arrow-down-to-line": ArrowDownToLine,
 };
 
 export function AreaIcon({

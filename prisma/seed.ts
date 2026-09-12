@@ -19,6 +19,8 @@ const AREAS: Array<{ name: string; icon: string; colour: string }> = [
   { name: "Utility & Appliances", icon: "washing-machine", colour: "lime" },
   { name: "Whole House", icon: "house", colour: "orange" },
   { name: "Outside", icon: "trees", colour: "emerald" },
+  { name: "Upstairs", icon: "arrow-up-to-line", colour: "cyan" },
+  { name: "Downstairs", icon: "arrow-down-to-line", colour: "fuchsia" },
 ];
 
 async function main() {

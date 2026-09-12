@@ -14,6 +14,9 @@ export const AREA_COLOURS: Record<string, string> = {
     "bg-orange-100 text-orange-950 dark:bg-orange-500/20 dark:text-orange-100",
   emerald:
     "bg-emerald-100 text-emerald-950 dark:bg-emerald-500/20 dark:text-emerald-100",
+  cyan: "bg-cyan-100 text-cyan-950 dark:bg-cyan-500/20 dark:text-cyan-100",
+  fuchsia:
+    "bg-fuchsia-100 text-fuchsia-950 dark:bg-fuchsia-500/20 dark:text-fuchsia-100",
 };
 
 export const AREA_COLOUR_KEYS = Object.keys(AREA_COLOURS);
