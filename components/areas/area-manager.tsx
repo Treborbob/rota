@@ -1,10 +1,27 @@
 "use client";
 
 import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   Archive,
   ArchiveRestore,
-  ArrowDown,
-  ArrowUp,
+  GripVertical,
   Pencil,
   Plus,
   Trash2,
@@ -45,7 +62,7 @@ import {
   archiveArea,
   createArea,
   deleteArea,
-  moveArea,
+  reorderAreas,
   restoreArea,
   updateArea,
 } from "@/lib/areas/actions";
@@ -83,6 +100,40 @@ export function AreaManager({ areas }: { areas: AreaRow[] }) {
   const active = areas.filter((a) => a.active);
   const archived = areas.filter((a) => !a.active);
 
+  // Optimistic order while a reorder is in flight; null means "as the server says".
+  const [order, setOrder] = useState<string[] | null>(null);
+  const serverIds = active.map((a) => a.id);
+  const ids = order ?? serverIds;
+  const byId = new Map(active.map((a) => [a.id, a]));
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 200, tolerance: 6 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  function onDragEnd({ active: dragged, over }: DragEndEvent) {
+    if (!over || dragged.id === over.id) return;
+    const from = ids.indexOf(String(dragged.id));
+    const to = ids.indexOf(String(over.id));
+    if (from < 0 || to < 0) return;
+    const next = arrayMove(ids, from, to);
+    setOrder(next);
+    startTransition(async () => {
+      const result = await reorderAreas(next);
+      if (result?.ok) {
+        setOrder(null);
+      } else {
+        setOrder(null);
+        toast.error(result?.message ?? "Couldn't save that order.");
+      }
+    });
+  }
+
   return (
     <div className="space-y-8">
       <form
@@ -106,85 +157,71 @@ export function AreaManager({ areas }: { areas: AreaRow[] }) {
         </PendingButton>
       </form>
 
-      <ul className="divide-y rounded-xl border">
-        {active.map((area, i) => (
-          <li key={area.id} className="flex items-center gap-1 px-3 py-2">
-            <div className="min-w-0 flex-1">
-              <Link
-                href={`/tasks?area=${area.id}`}
-                className="block hover:underline"
-              >
-                <AreaChip area={area} />
-              </Link>
-              <p className="mt-1 text-muted-foreground text-xs">
-                {area.taskCount} task{area.taskCount === 1 ? "" : "s"}
-                {area.dueCount ? ` · ${area.dueCount} due` : ""}
-                {area.overdueCount ? ` · ${area.overdueCount} overdue` : ""}
-              </p>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={`Move ${area.name} up`}
-              disabled={pending || i === 0}
-              onClick={() => run(() => moveArea(area.id, "up"))}
-            >
-              <ArrowUp />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={`Move ${area.name} down`}
-              disabled={pending || i === active.length - 1}
-              onClick={() => run(() => moveArea(area.id, "down"))}
-            >
-              <ArrowDown />
-            </Button>
-            <EditAreaDialog area={area} />
-            {area.everUsed ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={`Archive ${area.name}`}
-                disabled={pending}
-                onClick={() => run(() => archiveArea(area.id))}
-              >
-                <Archive />
-              </Button>
-            ) : (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Delete ${area.name}`}
-                    disabled={pending}
-                  >
-                    <Trash2 />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete {area.name}?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      It has never had a task, so there is no history to keep.
-                      This can't be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Keep it</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => run(() => deleteArea(area.id))}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={onDragEnd}
+      >
+        <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+          <ul className="divide-y rounded-xl border">
+            {ids.map((id) => {
+              const area = byId.get(id);
+              if (!area) return null;
+              return (
+                <SortableAreaRow key={id} area={area}>
+                  <EditAreaDialog area={area} />
+                  {area.everUsed ? (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Archive ${area.name}`}
+                      disabled={pending}
+                      onClick={() => run(() => archiveArea(area.id))}
                     >
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
-          </li>
-        ))}
-      </ul>
+                      <Archive />
+                    </Button>
+                  ) : (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Delete ${area.name}`}
+                          disabled={pending}
+                        >
+                          <Trash2 />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            Delete {area.name}?
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            It has never had a task, so there is no history to
+                            keep. This can't be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Keep it</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => run(() => deleteArea(area.id))}
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </SortableAreaRow>
+              );
+            })}
+          </ul>
+        </SortableContext>
+      </DndContext>
+      <p className="-mt-6 text-muted-foreground text-xs">
+        Drag a row to reorder. On a phone, press and hold first.
+      </p>
 
       {archived.length > 0 ? (
         <section>
@@ -213,6 +250,64 @@ export function AreaManager({ areas }: { areas: AreaRow[] }) {
         </section>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * A row you can drag by its handle or its text; the action buttons on the
+ * right stay clickable. Keyboard: focus the handle, space, arrows, space.
+ */
+function SortableAreaRow({
+  area,
+  children,
+}: {
+  area: AreaRow;
+  children: React.ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: area.id });
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn(
+        "flex items-center gap-1 bg-background px-2 py-2",
+        isDragging && "relative z-10 rounded-lg shadow-lg ring-1 ring-border",
+      )}
+    >
+      <button
+        type="button"
+        ref={setActivatorNodeRef}
+        {...attributes}
+        {...listeners}
+        aria-label={`Reorder ${area.name}`}
+        className="flex size-11 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing"
+      >
+        <GripVertical className="size-4" aria-hidden="true" />
+      </button>
+      <div className="min-w-0 flex-1 cursor-grab select-none" {...listeners}>
+        <Link
+          href={`/tasks?area=${area.id}`}
+          className="inline-block hover:underline"
+        >
+          <AreaChip area={area} />
+        </Link>
+        <p className="mt-1 text-muted-foreground text-xs">
+          {area.taskCount} task{area.taskCount === 1 ? "" : "s"}
+          {area.dueCount ? ` · ${area.dueCount} due` : ""}
+          {area.overdueCount ? ` · ${area.overdueCount} overdue` : ""}
+        </p>
+      </div>
+      {children}
+    </li>
   );
 }
 

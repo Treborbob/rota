@@ -86,33 +86,20 @@ export async function deleteArea(areaId: string): Promise<ActionState> {
   return success("Area deleted.");
 }
 
-/** Swap sort order with the neighbour above or below. */
-export async function moveArea(
-  areaId: string,
-  direction: "up" | "down",
-): Promise<ActionState> {
+/** Persist a new order for the active areas. `ids` must be exactly the active set. */
+export async function reorderAreas(ids: string[]): Promise<ActionState> {
   await requireUser();
-  const areas = await db.area.findMany({
+  const active = await db.area.findMany({
     where: { active: true },
-    orderBy: { sortOrder: "asc" },
-    select: { id: true, sortOrder: true },
+    select: { id: true },
   });
-  const index = areas.findIndex((a) => a.id === areaId);
-  const swapWith = direction === "up" ? index - 1 : index + 1;
-  if (index < 0 || swapWith < 0 || swapWith >= areas.length) return success();
-
-  // Re-number the whole list so orders stay distinct and well spaced.
-  const reordered = [...areas];
-  [reordered[index], reordered[swapWith]] = [
-    reordered[swapWith],
-    reordered[index],
-  ];
+  const expected = new Set(active.map((a) => a.id));
+  if (ids.length !== expected.size || !ids.every((id) => expected.has(id))) {
+    return failure("The list changed underneath you. Reload and try again.");
+  }
   await db.$transaction(
-    reordered.map((a, i) =>
-      db.area.update({
-        where: { id: a.id },
-        data: { sortOrder: (i + 1) * 10 },
-      }),
+    ids.map((id, i) =>
+      db.area.update({ where: { id }, data: { sortOrder: (i + 1) * 10 } }),
     ),
   );
   revalidate();
