@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { MAX_SAMPLES } from "@/lib/domain/duration";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import { compareTaskViews, type TaskView, toTaskView } from "@/lib/tasks/view";
 
@@ -64,11 +65,21 @@ export async function listTasks(
 }
 
 export async function getTask(taskId: string): Promise<TaskView | null> {
-  const [task, dueSoonDaysDefault] = await Promise.all([
+  const [task, dueSoonDaysDefault, recent] = await Promise.all([
     db.task.findUnique({ where: { id: taskId }, include: TASK_INCLUDE }),
     getDueSoonDaysDefault(),
+    db.taskCompletion.findMany({
+      where: { taskId, voidedAt: null, actualMinutes: { not: null } },
+      orderBy: { completedAt: "desc" },
+      take: MAX_SAMPLES,
+      select: { actualMinutes: true },
+    }),
   ]);
-  return task ? toTaskView(task, { dueSoonDaysDefault }) : null;
+  if (!task) return null;
+  return toTaskView(task, {
+    dueSoonDaysDefault,
+    durationSamples: recent.map((c) => c.actualMinutes as number),
+  });
 }
 
 export async function listAreas(includeInactive = false) {

@@ -13,6 +13,7 @@ import {
   todayLocal,
 } from "@/lib/dates";
 import { db } from "@/lib/db";
+import { effectiveMinutes, MAX_SAMPLES } from "@/lib/domain/duration";
 import {
   isHeavy,
   type PlannerInput,
@@ -39,15 +40,21 @@ async function loadPlannerTasks(
       completions: {
         where: { voidedAt: null },
         orderBy: { completedAt: "desc" },
-        take: 1,
-        select: { completedById: true },
+        take: MAX_SAMPLES,
+        select: { completedById: true, actualMinutes: true },
       },
     },
   });
   return tasks.map((t) => ({
     id: t.id,
     name: t.name,
-    estimatedMinutes: t.estimatedMinutes,
+    // Plan with what the job actually takes once we know; see lib/domain/duration.
+    estimatedMinutes: effectiveMinutes(
+      t.estimatedMinutes,
+      t.completions
+        .map((c) => c.actualMinutes)
+        .filter((m): m is number => m !== null),
+    ).minutes,
     priority: t.priority,
     unpleasant: t.unpleasant,
     assignmentMode: t.assignmentMode,

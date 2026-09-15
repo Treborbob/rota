@@ -50,3 +50,25 @@ export async function voidCompletionAction(
   }
   return success("Removed from history.");
 }
+
+/** Adjust how long a completion took: the after-the-fact "actually, 30 min". */
+export async function updateCompletionMinutes(
+  completionId: string,
+  minutes: number | null,
+): Promise<ActionState> {
+  await requireUser();
+  const value =
+    minutes === null ? null : Math.min(600, Math.max(1, Math.round(minutes)));
+  if (value !== null && !Number.isFinite(value)) {
+    return failure("Enter a number of minutes.");
+  }
+  const completion = await db.taskCompletion.update({
+    where: { id: completionId },
+    data: { actualMinutes: value },
+    select: { taskId: true },
+  });
+  for (const p of ["/", "/week", "/history", `/tasks/${completion.taskId}`]) {
+    revalidatePath(p);
+  }
+  return success(value === null ? "Time cleared." : `Noted: ${value} min.`);
+}

@@ -299,6 +299,8 @@ model PlannedTask {
   completionId             String?          @unique
   completion               TaskCompletion?  @relation("PlannedTaskCompletion", fields: [completionId], references: [id])
   manualOverride           Boolean          @default(false)
+  /// Set when someone taps Start; Done then records the elapsed minutes.
+  startedAt                DateTime?
   createdAt                DateTime         @default(now())
   updatedAt                DateTime         @updatedAt
 

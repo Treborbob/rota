@@ -10,6 +10,11 @@ import {
   describeDueState,
   describeNextDue,
 } from "@/lib/domain/due-state";
+import {
+  type DurationStats,
+  effectiveMinutes,
+  summariseDurations,
+} from "@/lib/domain/duration";
 import { describeCadence, type Recurrence } from "@/lib/domain/recurrence";
 import type {
   Area,
@@ -57,6 +62,10 @@ export type TaskView = {
   dueLabel: string;
   nextDueLabel: string;
   sortKey: number;
+  /** Recorded durations, when the caller loaded them (detail page only). */
+  durations: DurationStats | null;
+  /** Minutes the planner will use: learned typical, or the estimate. */
+  planningMinutes: number;
 };
 
 export function recurrenceOf(task: Task): Recurrence | null {
@@ -99,8 +108,13 @@ export function describeAssignment(
 
 export function toTaskView(
   task: TaskWithArea,
-  options: { today?: LocalDate; dueSoonDaysDefault: number },
+  options: {
+    today?: LocalDate;
+    dueSoonDaysDefault: number;
+    durationSamples?: number[];
+  },
 ): TaskView {
+  const samples = options.durationSamples ?? [];
   const today = options.today ?? todayLocal();
   const recurrence = recurrenceOf(task);
   const nextDueOn = fromDbDate(task.nextDueOn);
@@ -143,6 +157,8 @@ export function toTaskView(
     dueLabel: describeDueState(dueState),
     nextDueLabel: describeNextDue(dueState, today),
     sortKey: DUE_STATE_ORDER[dueState.kind],
+    durations: summariseDurations(samples),
+    planningMinutes: effectiveMinutes(task.estimatedMinutes, samples).minutes,
   };
 }
 

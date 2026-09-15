@@ -303,3 +303,21 @@ export async function restoreTask(taskId: string): Promise<ActionState> {
   await afterTaskChange(taskId);
   return success("Restored.");
 }
+
+/** "Use 30 min": adopt the learned typical duration as the estimate. */
+export async function updateTaskEstimate(
+  taskId: string,
+  minutes: number,
+): Promise<ActionState> {
+  await requireUser();
+  const value = Math.round(minutes);
+  if (!Number.isFinite(value) || value < 1 || value > 180) {
+    return failure("Estimates are 1 to 180 minutes.");
+  }
+  await db.task.update({
+    where: { id: taskId },
+    data: { estimatedMinutes: value },
+  });
+  await afterTaskChange(taskId);
+  return success(`Estimate is now ${value} min.`);
+}

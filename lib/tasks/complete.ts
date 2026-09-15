@@ -3,7 +3,7 @@
  * "does" a task (Tonight, Pick, the catalogue, a plan item) goes through
  * recordCompletion so recurrence and history can never drift apart.
  */
-import { fromDbDate, toDbDate, toLocalDate } from "@/lib/dates";
+import { addDaysLocal, fromDbDate, toDbDate, toLocalDate } from "@/lib/dates";
 import { nextDueAfterCompletion } from "@/lib/domain/recurrence";
 import { DomainError } from "@/lib/errors";
 import type {
@@ -75,18 +75,43 @@ export async function recordCompletion(
     },
   });
 
-  // If this task is sitting in a plan, mark that item done too.
+  // If this task is sitting in a plan, reconcile that placement. Done on the
+  // planned day: mark it. Done on another day of the same week: move the
+  // placement to that day so the week shows the work where it happened. Done
+  // outside the week (e.g. early, from Pick): the placement is simply no
+  // longer needed, so it goes, and the task won't be re-planned because its
+  // next due date has moved on.
   const planned = params.plannedTaskId
-    ? await tx.plannedTask.findUnique({ where: { id: params.plannedTaskId } })
+    ? await tx.plannedTask.findUnique({
+        where: { id: params.plannedTaskId },
+        include: { weeklyPlan: { select: { weekStartDate: true } } },
+      })
     : await tx.plannedTask.findFirst({
         where: { taskId: task.id, state: "PLANNED" },
         orderBy: { plannedDate: "desc" },
+        include: { weeklyPlan: { select: { weekStartDate: true } } },
       });
-  if (planned && planned.state === "PLANNED") {
-    await tx.plannedTask.update({
-      where: { id: planned.id },
-      data: { state: "COMPLETED", completionId: completion.id },
-    });
+  if (
+    planned &&
+    (planned.state === "PLANNED" || planned.state === "UNSCHEDULED")
+  ) {
+    const completedOn = toLocalDate(params.completedAt);
+    const weekStart = fromDbDate(planned.weeklyPlan.weekStartDate);
+    const weekEnd = addDaysLocal(weekStart, 6);
+    if (completedOn >= weekStart && completedOn <= weekEnd) {
+      await tx.plannedTask.update({
+        where: { id: planned.id },
+        data: {
+          state: "COMPLETED",
+          completionId: completion.id,
+          plannedDate: toDbDate(completedOn),
+          assignedToId: params.userId,
+          startedAt: null,
+        },
+      });
+    } else {
+      await tx.plannedTask.delete({ where: { id: planned.id } });
+    }
   }
 
   return completion;

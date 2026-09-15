@@ -67,6 +67,27 @@ screen), `PLAN` (from Tonight or the Week view).
 Back-dated completions land at midday local time on the chosen day, so they
 sort sensibly and sit on the right calendar day either side of a DST switch.
 
+### Where a completion lands in the plan
+
+If the task has a placement in a plan: done on the planned day, the item is
+marked complete; done on another day of the same week, the item moves to that
+day so the week shows the work where it happened; done outside that week (an
+early completion from Pick, say), the placement is deleted. The task is not
+re-planned because its next due date has moved on.
+
+## How long things really take
+
+A completion may carry `actualMinutes`. Three ways it gets there: the
+completion dialog (Pick, task page) asks; a running timer on a plan item
+(Start, then Done) records the elapsed minutes; and after a one-tap Done the
+card offers "took about N min?" with nudges. None of it is mandatory.
+
+Once a task has at least 3 recorded durations (looking at the last 10), the
+**typical** figure, the median, replaces the estimate for planning. The task
+page shows the range and offers to adopt the typical figure as the estimate.
+The plan snapshot stores the minutes the planner actually used. See
+`lib/domain/duration.ts`.
+
 ## Undoing (voiding) a completion
 
 Completions are never deleted. Voiding marks the row with who, when and why,

@@ -6,11 +6,13 @@ import {
   ExternalLink,
   Flame,
   MoveRight,
+  Play,
   SkipForward,
+  Timer,
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { AreaChip } from "@/components/area-chip";
 import { FormField } from "@/components/form-field";
@@ -37,16 +39,21 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { useToastAction } from "@/components/use-action-toast";
 import type { ActionState } from "@/lib/action-state";
+import { updateCompletionMinutes } from "@/lib/completions/actions";
+import { elapsedMinutes } from "@/lib/domain/duration";
 import { toneForMember } from "@/lib/member-style";
 import type { Member } from "@/lib/members";
 import {
+  cancelStart,
   completePlannedItem,
   movePlannedItem,
   removePlannedItem,
   skipPlannedItem,
+  startPlannedItem,
 } from "@/lib/planning/actions";
 import type { PlanItemView } from "@/lib/planning/queries";
 import { cn } from "@/lib/utils";
@@ -70,6 +77,7 @@ export function PlanItemCard({
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const done = item.state === "COMPLETED";
+  const running = !done && item.startedAt !== null;
 
   function run(action: () => Promise<ActionState>) {
     startTransition(async () => {
@@ -88,6 +96,7 @@ export function PlanItemCard({
         "rounded-xl border bg-card",
         done && "opacity-60",
         pending && "opacity-70",
+        running && "border-rota-orange/60",
       )}
     >
       <div className="flex items-center gap-1 p-1.5 pr-2">
@@ -136,7 +145,15 @@ export function PlanItemCard({
             </span>
             <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-muted-foreground text-xs">
               <AreaChip area={item.area} />
-              <span className="tabular-nums">{item.minutesLabel}</span>
+              {running && item.startedAt ? (
+                <Elapsed startedAt={item.startedAt} />
+              ) : done && item.completion?.actualMinutes ? (
+                <span className="tabular-nums">
+                  took {item.completion.actualMinutes} min
+                </span>
+              ) : (
+                <span className="tabular-nums">{item.minutesLabel}</span>
+              )}
               {!compact && item.assignedTo ? (
                 <span className="inline-flex items-center gap-1">
                   <MemberAvatar
@@ -174,8 +191,38 @@ export function PlanItemCard({
           {item.notes ? (
             <p className="whitespace-pre-wrap leading-relaxed">{item.notes}</p>
           ) : null}
+
+          {done && item.completion ? (
+            <AdjustMinutes
+              completionId={item.completion.id}
+              current={item.completion.actualMinutes}
+              estimate={item.minutes}
+            />
+          ) : null}
+
           {!done ? (
             <div className="flex flex-wrap gap-2">
+              {running ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pending}
+                  onClick={() => run(() => cancelStart(item.id))}
+                >
+                  <Timer />
+                  Cancel timer
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pending}
+                  onClick={() => run(() => startPlannedItem(item.id))}
+                >
+                  <Play />
+                  Start
+                </Button>
+              )}
               <MoveDialog item={item} days={days} members={members} />
               <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -222,6 +269,99 @@ export function PlanItemCard({
         </div>
       ) : null}
     </li>
+  );
+}
+
+/** "14 min so far", ticking once a minute. */
+function Elapsed({ startedAt }: { startedAt: Date }) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <span className="inline-flex items-center gap-1 tabular-nums text-rota-orange">
+      <Timer className="size-3" aria-hidden="true" />
+      {elapsedMinutes(startedAt, now)} min so far
+    </span>
+  );
+}
+
+/**
+ * After Done: "took about 20 min" with nudges. This is where Rota learns real
+ * durations, so it is quick and optional rather than a prompt.
+ */
+function AdjustMinutes({
+  completionId,
+  current,
+  estimate,
+}: {
+  completionId: string;
+  current: number | null;
+  estimate: number;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [value, setValue] = useState<number>(current ?? estimate);
+  const save = (minutes: number) =>
+    startTransition(async () => {
+      const r = await updateCompletionMinutes(completionId, minutes);
+      if (r?.ok) {
+        setValue(minutes);
+        if (r.message) toast.success(r.message);
+      } else if (r?.message) {
+        toast.error(r.message);
+      }
+    });
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-muted-foreground">
+        {current === null
+          ? `Took about ${estimate} min?`
+          : `Took ${current} min.`}
+      </span>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={pending || value <= 5}
+        onClick={() => save(Math.max(1, value - 5))}
+        aria-label="Five minutes less"
+      >
+        −5
+      </Button>
+      <Input
+        type="number"
+        inputMode="numeric"
+        min={1}
+        max={600}
+        value={value}
+        onChange={(e) => setValue(Number(e.target.value))}
+        onBlur={() => {
+          if (value >= 1 && value !== current) save(value);
+        }}
+        aria-label="Minutes it took"
+        className="h-8 w-20 text-center"
+      />
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={pending}
+        onClick={() => save(value + 5)}
+        aria-label="Five minutes more"
+      >
+        +5
+      </Button>
+      {current === null ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={pending}
+          onClick={() => save(estimate)}
+        >
+          Yes, about that
+        </Button>
+      ) : null}
+    </div>
   );
 }
 

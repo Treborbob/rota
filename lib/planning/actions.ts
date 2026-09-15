@@ -16,6 +16,7 @@ import {
   todayLocal,
 } from "@/lib/dates";
 import { db } from "@/lib/db";
+import { elapsedMinutes } from "@/lib/domain/duration";
 import { DomainError, userMessage } from "@/lib/errors";
 import { generatePlan } from "@/lib/planning/generate";
 import { currentWeekStart } from "@/lib/planning/queries";
@@ -66,19 +67,18 @@ export async function completePlannedItem(
       if (item.state !== "PLANNED" && item.state !== "UNSCHEDULED") {
         throw new DomainError("That item isn't on the plan any more.");
       }
+      const now = new Date();
+      // A running timer beats a guess; an explicit figure beats both.
+      const minutes =
+        actualMinutes ??
+        (item.startedAt ? elapsedMinutes(item.startedAt, now) : null);
       await recordCompletion(tx, {
         taskId: item.taskId,
         userId: user.id,
-        completedAt: new Date(),
+        completedAt: now,
         source: "PLAN",
-        actualMinutes: actualMinutes ?? null,
+        actualMinutes: minutes,
         plannedTaskId: item.id,
-      });
-      // recordCompletion marks a PLANNED item; an UNSCHEDULED one done from
-      // overflow needs the same treatment.
-      await tx.plannedTask.updateMany({
-        where: { id: item.id, state: "UNSCHEDULED" },
-        data: { state: "COMPLETED", assignedToId: user.id },
       });
     });
   } catch (error) {
@@ -86,6 +86,29 @@ export async function completePlannedItem(
   }
   revalidatePlanPaths(await weekStartOfItem(plannedTaskId));
   return success("Done. Nice one.");
+}
+
+/** Tap Start when you begin; Done then records how long it took. */
+export async function startPlannedItem(
+  plannedTaskId: string,
+): Promise<ActionState> {
+  await requireUser();
+  await db.plannedTask.updateMany({
+    where: { id: plannedTaskId, state: "PLANNED", startedAt: null },
+    data: { startedAt: new Date() },
+  });
+  revalidatePlanPaths(await weekStartOfItem(plannedTaskId));
+  return success();
+}
+
+export async function cancelStart(plannedTaskId: string): Promise<ActionState> {
+  await requireUser();
+  await db.plannedTask.updateMany({
+    where: { id: plannedTaskId },
+    data: { startedAt: null },
+  });
+  revalidatePlanPaths(await weekStartOfItem(plannedTaskId));
+  return success();
 }
 
 export async function removePlannedItem(

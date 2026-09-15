@@ -4,6 +4,7 @@ import { AreaChip } from "@/components/area-chip";
 import { HistoryList } from "@/components/history/history-list";
 import { PageHeader } from "@/components/page-header";
 import { DueBadge } from "@/components/tasks/due-badge";
+import { DurationStatsLine } from "@/components/tasks/duration-stats";
 import { TaskActions } from "@/components/tasks/task-actions";
 import { WEEKDAY_LABELS } from "@/lib/capacity";
 import { listCompletions } from "@/lib/completions/queries";
@@ -31,7 +32,12 @@ export default async function TaskPage({
 
   const facts: Array<[string, string]> = [
     ["Cadence", task.cadenceLabel],
-    ["Estimate", task.minutesLabel],
+    [
+      "Estimate",
+      task.planningMinutes !== task.estimatedMinutes
+        ? `${task.minutesLabel} (planner uses ${task.planningMinutes} min)`
+        : task.minutesLabel,
+    ],
     ["Who", task.assignmentLabel],
     ["Priority", PRIORITY_LABELS[task.priority]],
     [
@@ -86,6 +92,16 @@ export default async function TaskPage({
           </div>
         ))}
       </dl>
+
+      <section className="mb-8">
+        <h3 className="mb-2 font-medium">How long it really takes</h3>
+        <DurationStatsLine
+          taskId={task.id}
+          estimate={task.estimatedMinutes}
+          stats={task.durations}
+          planningMinutes={task.planningMinutes}
+        />
+      </section>
 
       {task.notes ? (
         <section className="mb-8">

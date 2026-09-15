@@ -49,6 +49,8 @@ export type PlanItemView = {
   manualOverride: boolean;
   dueLabel: string;
   dueOn: LocalDate | null;
+  startedAt: Date | null;
+  completion: { id: string; actualMinutes: number | null } | null;
 };
 
 export type PlanMemberDay = {
@@ -145,6 +147,7 @@ export async function getPlanView(
           },
         },
         assignedTo: { select: { id: true, name: true } },
+        completion: { select: { id: true, actualMinutes: true } },
       },
     }),
   ]);
@@ -180,6 +183,8 @@ export async function getPlanView(
       manualOverride: item.manualOverride,
       dueLabel: describeDueState(dueState),
       dueOn,
+      startedAt: item.startedAt,
+      completion: item.completion,
     };
   });
 
