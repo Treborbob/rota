@@ -133,13 +133,81 @@ describe("selectCandidates", () => {
 });
 
 describe("planWeek", () => {
-  it("Scenario B: a Saturday-due task lands Monday–Thursday by default", () => {
+  it("Scenario B: a Saturday-due task waits for next week rather than going early", () => {
     const out = planWeek(
       input({ tasks: [task({ id: "sat", nextDueOn: SAT })] }),
     );
-    expect(out.placements).toHaveLength(1);
-    expect([MON, TUE, WED, THU]).toContain(out.placements[0].date);
-    expect(out.unscheduled).toEqual([]);
+    expect(out.placements).toEqual([]);
+    expect(out.unscheduled).toEqual([
+      {
+        taskId: "sat",
+        score: expect.any(Number),
+        code: "DUE_AFTER_LAST_EVENING",
+      },
+    ]);
+  });
+
+  it("Scenario B (cont.): next week it is overdue and lands on the first evening", () => {
+    const nextWeek = addDaysLocal(WEEK, 7);
+    const out = planWeek(
+      input({
+        weekStart: nextWeek,
+        today: nextWeek,
+        buckets: buckets().map((b) => ({
+          ...b,
+          date: addDaysLocal(b.date, 7),
+        })),
+        tasks: [task({ id: "sat", nextDueOn: SAT })],
+      }),
+    );
+    expect(out.placements[0]).toMatchObject({
+      taskId: "sat",
+      date: nextWeek,
+      code: "OVERDUE",
+    });
+  });
+
+  it("goes on the due day even when an earlier evening is emptier (no ratchet)", () => {
+    const out = planWeek(
+      input({
+        buckets: buckets({ rob: { [MON]: 120 }, hannah: { [MON]: 120 } }),
+        tasks: [task({ id: "t", nextDueOn: WED })],
+      }),
+    );
+    expect(out.placements[0].date).toBe(WED);
+  });
+
+  it("a full due day pushes the task later, never earlier", () => {
+    const out = planWeek(
+      input({
+        buckets: buckets({ rob: { [WED]: 0 }, hannah: { [WED]: 0 } }),
+        tasks: [task({ id: "t", nextDueOn: WED })],
+      }),
+    );
+    expect(out.placements[0].date).toBe(THU);
+  });
+
+  it("a task added by hand may go anywhere in the week", () => {
+    const out = planWeek(
+      input({
+        pinnedTaskIds: ["far"],
+        tasks: [task({ id: "far", nextDueOn: "2026-12-01" })],
+      }),
+    );
+    expect(out.placements[0]).toMatchObject({
+      taskId: "far",
+      date: MON,
+      code: "PINNED",
+    });
+  });
+
+  it("a preferred weekday before the due date still wins", () => {
+    const out = planWeek(
+      input({
+        tasks: [task({ id: "t", preferredWeekday: 1, nextDueOn: THU })],
+      }),
+    );
+    expect(out.placements[0].date).toBe(MON);
   });
 
   it("Scenario B (cont.): giving Saturday minutes allows Saturday placement", () => {
@@ -252,34 +320,25 @@ describe("planWeek", () => {
     expect(out.placements[0].date).toBe(WED);
   });
 
-  it("places on or before the due date when possible", () => {
+  it("places on the due date, not before it", () => {
     const out = planWeek(input({ tasks: [task({ id: "t", nextDueOn: TUE })] }));
-    expect([MON, TUE]).toContain(out.placements[0].date);
+    expect(out.placements[0].date).toBe(TUE);
   });
 
-  it("does not stack two heavy jobs on one person in one night if it can help it", () => {
+  it("splits two heavy jobs due the same night between people", () => {
     const out = planWeek(
       input({
-        buckets: buckets({
-          rob: { [MON]: 60, [TUE]: 60 },
-          hannah: { [MON]: 60, [TUE]: 60 },
-        }),
+        buckets: buckets({ rob: { [MON]: 60 }, hannah: { [MON]: 60 } }),
         tasks: [
-          task({ id: "h1", estimatedMinutes: 30, nextDueOn: SUN }),
-          task({ id: "h2", estimatedMinutes: 30, nextDueOn: SUN }),
-          task({ id: "h3", estimatedMinutes: 30, nextDueOn: SUN }),
-          task({ id: "h4", estimatedMinutes: 30, nextDueOn: SUN }),
+          task({ id: "h1", estimatedMinutes: 30, nextDueOn: MON }),
+          task({ id: "h2", estimatedMinutes: 30, nextDueOn: MON }),
         ],
       }),
     );
-    const perNight = out.placements.reduce<Record<string, number>>((acc, p) => {
-      const key = `${p.userId}:${p.date}`;
-      acc[key] = (acc[key] ?? 0) + 1;
-      return acc;
-    }, {});
-    // Four heavy jobs, two people, 60 minutes each on Monday and Tuesday:
-    // they could all fit on Monday. The spread rule says one heavy per night.
-    expect(Math.max(...Object.values(perNight))).toBe(1);
+    const p = byTask(out);
+    expect(p.h1.date).toBe(MON);
+    expect(p.h2.date).toBe(MON);
+    expect(p.h1.userId).not.toBe(p.h2.userId);
   });
 
   it("but being on time beats spreading heavy work", () => {
@@ -306,9 +365,24 @@ describe("planWeek", () => {
           hannah: { [TUE]: 0, [WED]: 0, [THU]: 0 },
         }),
         tasks: [
-          task({ id: "high", priority: "HIGH", estimatedMinutes: 30 }),
-          task({ id: "normal", priority: "NORMAL", estimatedMinutes: 30 }),
-          task({ id: "low", priority: "LOW", estimatedMinutes: 30 }),
+          task({
+            id: "high",
+            priority: "HIGH",
+            estimatedMinutes: 30,
+            nextDueOn: MON,
+          }),
+          task({
+            id: "normal",
+            priority: "NORMAL",
+            estimatedMinutes: 30,
+            nextDueOn: MON,
+          }),
+          task({
+            id: "low",
+            priority: "LOW",
+            estimatedMinutes: 30,
+            nextDueOn: MON,
+          }),
         ],
       }),
     );
@@ -374,13 +448,13 @@ describe("planWeek", () => {
             id: "nice",
             estimatedMinutes: 20,
             priority: "HIGH",
-            nextDueOn: WED,
+            nextDueOn: MON,
           }),
           task({
             id: "must",
             estimatedMinutes: 20,
             priority: "ESSENTIAL",
-            nextDueOn: WED,
+            nextDueOn: MON,
           }),
         ],
       }),

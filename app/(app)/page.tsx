@@ -158,10 +158,10 @@ export default async function TonightPage() {
             );
           })}
 
-          {plan && plan.overflow.length > 0 ? (
+          {plan && plan.shortfallMinutes > 0 ? (
             <p className="text-muted-foreground text-sm">
-              {plan.overflow.length} task{plan.overflow.length === 1 ? "" : "s"}{" "}
-              couldn't fit this week.{" "}
+              About {formatMinutes(plan.shortfallMinutes)} more than the week
+              has room for.{" "}
               <Link href="/week" className="underline">
                 See the week
               </Link>

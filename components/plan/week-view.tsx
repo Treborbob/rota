@@ -72,31 +72,40 @@ export async function WeekView({ plan }: { plan: PlanView }) {
         <AddToWeekDialog weekStart={plan.weekStart} tasks={addableViews} />
       </div>
 
-      <div className="mb-6 flex items-center justify-between gap-6 rounded-2xl bg-gradient-to-r from-rota-orange-soft to-rota-teal-soft px-5 py-4">
-        <div className="min-w-0">
-          <p className="font-semibold text-xl tabular-nums tracking-tight">
-            {formatMinutes(plan.totalPlanned)} planned
-          </p>
-          <p className="text-muted-foreground text-sm">
-            {formatMinutes(doneMinutes)} done ·{" "}
-            {formatMinutes(plan.totalCapacity)} available
-          </p>
-        </div>
-        <div
-          className="h-2 w-40 shrink-0 overflow-hidden rounded-full bg-background/50"
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={plan.totalPlanned}
-          aria-valuenow={doneMinutes}
-          aria-label="Minutes done this week"
-        >
+      <div className="mb-6 rounded-2xl bg-gradient-to-r from-rota-orange-soft to-rota-teal-soft px-5 py-4">
+        <div className="flex items-center justify-between gap-6">
+          <div className="min-w-0">
+            <p className="font-semibold text-xl tabular-nums tracking-tight">
+              {formatMinutes(plan.totalPlanned)} planned
+            </p>
+            <p className="text-muted-foreground text-sm">
+              {formatMinutes(doneMinutes)} done ·{" "}
+              {formatMinutes(plan.totalCapacity)} available
+            </p>
+          </div>
           <div
-            className="h-full rounded-full bg-rota-orange"
-            style={{
-              width: `${plan.totalPlanned ? Math.min(100, (doneMinutes / plan.totalPlanned) * 100) : 0}%`,
-            }}
-          />
+            className="h-2 w-40 shrink-0 overflow-hidden rounded-full bg-background/50"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={plan.totalPlanned}
+            aria-valuenow={doneMinutes}
+            aria-label="Minutes done this week"
+          >
+            <div
+              className="h-full rounded-full bg-rota-orange"
+              style={{
+                width: `${plan.totalPlanned ? Math.min(100, (doneMinutes / plan.totalPlanned) * 100) : 0}%`,
+              }}
+            />
+          </div>
         </div>
+        {plan.shortfallMinutes > 0 ? (
+          <p className="mt-3 text-sm">
+            About {formatMinutes(plan.shortfallMinutes)} more than the week has
+            room for. Add some minutes to an evening, or move something.
+            {plan.shortfallNote ? ` ${plan.shortfallNote}` : ""}
+          </p>
+        ) : null}
       </div>
 
       {visibleDays.length === 0 ? (
@@ -178,8 +187,8 @@ export async function WeekView({ plan }: { plan: PlanView }) {
         <section className="mt-8">
           <h3 className="mb-1 font-medium">Couldn't fit this week</h3>
           <p className="mb-3 text-muted-foreground text-sm">
-            Still due. Move one by hand, free up an evening, or leave it for
-            next week.
+            Still due. Add some minutes to an evening, move one by hand, or
+            leave it for next week.
           </p>
           <ul className="space-y-2">
             {plan.overflow.map((item) => (
@@ -192,6 +201,26 @@ export async function WeekView({ plan }: { plan: PlanView }) {
                   UNSCHEDULED_MESSAGES[item.code as UnscheduledCode] ??
                   item.codeLabel
                 }
+              />
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {plan.waiting.length > 0 ? (
+        <section className="mt-8">
+          <h3 className="mb-1 font-medium">Waiting for next week</h3>
+          <p className="mb-3 text-muted-foreground text-sm">
+            Due after the last evening with any time this week, so they'll be
+            planned next week. Move one by hand if you'd rather do it sooner.
+          </p>
+          <ul className="space-y-2">
+            {plan.waiting.map((item) => (
+              <PlanItemCard
+                key={item.id}
+                item={item}
+                days={dayOptions}
+                members={plan.members}
               />
             ))}
           </ul>

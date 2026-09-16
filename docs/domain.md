@@ -163,13 +163,29 @@ week stays legible.
 
 ### Where
 
-For each candidate in order, every slot the person(s) may use on an allowed
-weekday is ranked by projected utilisation (used + task) ÷ capacity, plus a
-penalty if the slot already holds a heavy job (30+ minutes, essential, or
-unpleasant). Slots on the task's preferred weekday are tried first, then
-slots on or before the due date, then everything. Ties break on lighter
-load, earlier date, member order. The task must fit; only an ESSENTIAL task
-may overflow a slot rather than be dropped.
+A task goes on its due day, or the nearest evening after it. Never earlier:
+a cadence is deliberate, doing a job early wastes the effort, and because
+most tasks re-anchor to the day they were done, an early placement shifts
+every later occurrence too. (The old "on or before the due date, emptiest
+evening" rule ratcheted every weekly job towards Monday.) Overdue work
+therefore lands on the first evening from today. A task's preferred weekday
+wins outright when it has room, because a person chose it, and a task added
+to the week by hand may go anywhere in it.
+
+For each candidate in order, the eligible slots (the person or people it may
+go to, on an allowed weekday, on or after the due date) are sorted by date,
+then by projected utilisation (used + task) ÷ capacity plus a penalty if the
+slot already holds a heavy job (30+ minutes, essential, or unpleasant), then
+lighter recent load, then member order. So load balancing and heavy-job
+spreading only decide between people on the same evening; they never move a
+task to a different day. The task must fit; only an ESSENTIAL task may
+overflow a slot rather than be dropped.
+
+A task due after the last evening with any time (a Saturday job in a
+household that does nothing at weekends) is not placed this week. It is
+reported as `DUE_AFTER_LAST_EVENING` and shown under "Waiting for next
+week"; the following week it is overdue and lands on the first evening.
+Once done there it re-anchors to that weekday and settles.
 
 ### Overflow reasons
 
@@ -181,6 +197,13 @@ may overflow a slot rather than be dropped.
 | FIXED_ASSIGNEE_OVERLOADED | The fixed person's slots are full |
 | TOO_LONG_FOR_ANY_SLOT | Longer than any single evening |
 | MISSED_NO_EVENING_LEFT | Missed earlier in the week, owner has no evening left |
+| DUE_AFTER_LAST_EVENING | Due after the last evening with time; waits for next week, not a shortfall |
+
+Every reason except `DUE_AFTER_LAST_EVENING` is a **shortfall**: more minutes
+in an evening would fix it. The Week and Tonight screens sum those minutes
+("About 1 h 10 more than the week has room for") and, when the whole
+shortfall is one person's fixed jobs and someone else has spare time, say
+who and when.
 
 ### Carry-over
 

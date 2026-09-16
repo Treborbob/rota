@@ -180,7 +180,7 @@ projectedLoad = plannedMinutesThisWeek + completedMinutesInPrevious28Days * 0.25
 ```
 
 ### 7.5 Placement
-For each candidate in score order: enumerate eligible buckets (allowed weekday, capacity remaining, on or before due date where possible), prefer the preferred weekday if it fits, then choose the bucket with the lowest utilisation ratio. Avoid giving one person two heavy tasks (30+ minutes, ESSENTIAL, or unpleasant) on the same night. ESSENTIAL tasks may overflow a bucket; anything else that does not fit becomes `UNSCHEDULED` with a reason: insufficient capacity, assignee unavailable, no allowed day, fixed assignee overloaded, or task longer than any bucket.
+For each candidate in score order: the task goes on its due day or the nearest evening after it, never earlier (a cadence is deliberate, and an early completion re-anchors every later one). The preferred weekday wins outright if it has room; a task added by hand may go anywhere in the week. Between people on the same evening, choose the lowest utilisation ratio, avoiding two heavy tasks (30+ minutes, ESSENTIAL, or unpleasant) on one person's night. ESSENTIAL tasks may overflow a bucket; anything else that does not fit becomes `UNSCHEDULED` with a reason: insufficient capacity, assignee unavailable, no allowed day, fixed assignee overloaded, task longer than any bucket, or due after the last evening with time (waits for next week; not a shortfall). The Week and Tonight screens sum the shortfall in minutes and suggest adding time to an evening or moving something.
 
 ### 7.6 Regeneration
 Preserves completed, skipped, and removed items and anything with `manualOverride`. Re-plans only the rest plus newly eligible candidates. No preview step in v1.
@@ -299,7 +299,7 @@ Passkeys, Sign in with Apple, web push, offline completion queue, holiday mode, 
 ## 16. Acceptance scenarios
 
 - **Mixed cadence.** Weekly dusting, four-weekly sofa vacuum, six-weekly filters, quarterly windows: the week contains only what is due or reasonably soon, and each completion yields the right next date.
-- **Weekend by default.** With default capacities, a task due Saturday is pulled into Monday to Thursday and nothing is placed Friday to Sunday. Giving Saturday 60 minutes in Settings allows Saturday placement.
+- **Weekend by default.** With default capacities, a task due Saturday is not done early: it shows under "Waiting for next week", is overdue on Monday and is done then, after which it re-anchors to Monday. Nothing is placed Friday to Sunday. Giving Saturday 60 minutes in Settings allows Saturday placement.
 - **Balanced pair.** Both free for 30 minutes; two 15-minute tasks and one 30-minute task split by minutes, not count. Fixed and alternate rules hold.
 - **Changed availability.** Hannah unavailable Tuesday: regeneration moves only unaffected work and never gives her Tuesday.
 - **Late completion.** A four-week task done five days late is next due four weeks from the actual completion.

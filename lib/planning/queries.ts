@@ -10,6 +10,7 @@ import {
 import { db } from "@/lib/db";
 import { classifyDueState, describeDueState } from "@/lib/domain/due-state";
 import {
+  isShortfall,
   PLACEMENT_MESSAGES,
   type PlacementCode,
   UNSCHEDULED_MESSAGES,
@@ -87,7 +88,14 @@ export type PlanView = {
   generatedAt: Date;
   members: Member[];
   days: PlanDayView[];
+  /** Didn't fit: more minutes in an evening would fix it. */
   overflow: PlanItemView[];
+  /** Due after the last evening with any time; next week's problem. */
+  waiting: PlanItemView[];
+  /** Minutes of overflow, the honest size of the week's shortfall. */
+  shortfallMinutes: number;
+  /** "Rob's jobs are 40 min over; Hannah has 30 min free on Thursday." */
+  shortfallNote: string | null;
   done: PlanItemView[];
   totalPlanned: number;
   totalCapacity: number;
@@ -145,6 +153,8 @@ export async function getPlanView(
             dueSoonDays: true,
             pausedAt: true,
             deferredUntil: true,
+            assignmentMode: true,
+            fixedAssigneeId: true,
             area: {
               select: { id: true, name: true, icon: true, colour: true },
             },
@@ -230,6 +240,48 @@ export async function getPlanView(
     };
   });
 
+  const unscheduled = views.filter((v) => v.state === "UNSCHEDULED");
+  const overflow = unscheduled.filter((v) => isShortfall(v.code));
+  const waiting = unscheduled.filter((v) => !isShortfall(v.code));
+  const shortfallMinutes = overflow.reduce((s, v) => s + v.minutes, 0);
+
+  // When the whole shortfall is one person's fixed jobs and someone else has
+  // time to spare, say so: that's the reassign nudge, without a button.
+  let shortfallNote: string | null = null;
+  const fixedOwners = new Set(
+    overflow.map((v) => {
+      const raw = items.find((i) => i.id === v.id);
+      return raw?.task.assignmentMode === "FIXED"
+        ? raw.task.fixedAssigneeId
+        : null;
+    }),
+  );
+  const [ownerId] = fixedOwners;
+  const owner = members.find((m) => m.id === ownerId);
+  if (overflow.length > 0 && fixedOwners.size === 1 && owner) {
+    let best: { name: string; minutes: number; day: string } | null = null;
+    for (const d of days) {
+      if (d.date < today) continue;
+      for (const m of d.members) {
+        const spare = m.capacity - m.planned;
+        if (
+          m.userId !== owner.id &&
+          spare > 0 &&
+          spare > (best?.minutes ?? 0)
+        ) {
+          best = {
+            name: m.name,
+            minutes: spare,
+            day: formatLocalDate(d.date, "EEEE"),
+          };
+        }
+      }
+    }
+    if (best) {
+      shortfallNote = `${firstName(owner.name)}'s jobs are ${formatMinutes(shortfallMinutes)} over; ${best.name} has ${formatMinutes(best.minutes)} free on ${best.day}.`;
+    }
+  }
+
   return {
     weekStart,
     weekEnd,
@@ -239,7 +291,10 @@ export async function getPlanView(
     generatedAt: plan.generatedAt,
     members,
     days,
-    overflow: views.filter((v) => v.state === "UNSCHEDULED"),
+    overflow,
+    waiting,
+    shortfallMinutes,
+    shortfallNote,
     done: views.filter((v) => v.state === "COMPLETED"),
     totalPlanned: days.reduce((s, d) => s + d.planned, 0),
     totalCapacity: days.reduce((s, d) => s + d.capacity, 0),

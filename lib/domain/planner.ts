@@ -92,7 +92,8 @@ export type UnscheduledCode =
   | "NO_ALLOWED_DAY"
   | "FIXED_ASSIGNEE_OVERLOADED"
   | "TOO_LONG_FOR_ANY_SLOT"
-  | "MISSED_NO_EVENING_LEFT";
+  | "MISSED_NO_EVENING_LEFT"
+  | "DUE_AFTER_LAST_EVENING";
 
 export type Placement = {
   taskId: string;
@@ -131,7 +132,14 @@ export const UNSCHEDULED_MESSAGES: Record<UnscheduledCode, string> = {
   FIXED_ASSIGNEE_OVERLOADED: "The person who always does this is already full",
   TOO_LONG_FOR_ANY_SLOT: "Longer than any single evening's budget",
   MISSED_NO_EVENING_LEFT: "Missed earlier this week, and no evenings left",
+  DUE_AFTER_LAST_EVENING:
+    "Due after the last evening with any time this week; planned next week",
 };
+
+/** Overflow that more minutes in an evening would fix, as opposed to waiting. */
+export function isShortfall(code: string): boolean {
+  return code !== "DUE_AFTER_LAST_EVENING";
+}
 
 export const PLACEMENT_MESSAGES: Record<PlacementCode, string> = {
   OVERDUE: "Overdue",
@@ -351,52 +359,68 @@ export function planWeek(input: PlannerInput): PlannerOutput {
       };
     });
 
-    const byPreference = (rs: Ranked[]): Ranked[] => {
-      // Prefer the task's preferred weekday, then days on or before the due date.
-      if (task.preferredWeekday !== null) {
-        const pref = rs.filter(
-          (r) => isoWeekday(r.slot.date) === task.preferredWeekday,
-        );
-        if (pref.length > 0) rs = pref;
-      }
-      if (task.nextDueOn) {
-        const due = task.nextDueOn;
-        const before = rs.filter((r) => r.slot.date <= due);
-        if (before.length > 0) rs = before;
-      }
-      return rs;
-    };
+    // A preferred weekday wins outright when it has room: a person chose
+    // it. Otherwise the task goes on its due day or the nearest evening
+    // after it, never earlier. A cadence is deliberate, and doing a job
+    // early both wastes the effort and shifts every later occurrence.
+    // Overdue work therefore lands on the first evening from today, and a
+    // task added by hand may go anywhere in the week.
+    const earliest =
+      candidate.code === "PINNED" || !task.nextDueOn
+        ? input.today
+        : task.nextDueOn;
+    const preferred =
+      task.preferredWeekday === null
+        ? []
+        : ranked.filter(
+            (r) => isoWeekday(r.slot.date) === task.preferredWeekday,
+          );
+    const onOrAfter = ranked.filter((r) => r.slot.date >= earliest);
 
+    // Nearest date first; utilisation, heavy stacking and recent load only
+    // decide between people on the same evening.
     const order = (a: Ranked, b: Ranked): number => {
+      if (a.slot.date !== b.slot.date)
+        return a.slot.date < b.slot.date ? -1 : 1;
       if (a.ratio !== b.ratio) return a.ratio - b.ratio;
       const la = load[a.slot.userId] ?? 0;
       const lb = load[b.slot.userId] ?? 0;
       if (la !== lb) return la - lb;
-      if (a.slot.date !== b.slot.date)
-        return a.slot.date < b.slot.date ? -1 : 1;
       return (
         (memberOrder.get(a.slot.userId) ?? 0) -
         (memberOrder.get(b.slot.userId) ?? 0)
       );
     };
 
-    const fitting = byPreference(ranked.filter((r) => r.fits)).sort(order);
+    const pool = preferred.some((r) => r.fits) ? preferred : onOrAfter;
+    const fitting = pool.filter((r) => r.fits).sort(order);
     let chosen: Ranked | undefined = fitting[0];
     let code = candidate.code;
 
-    if (!chosen && options.allowOverflow && task.priority === "ESSENTIAL") {
-      chosen = byPreference([...ranked]).sort(order)[0];
+    if (
+      !chosen &&
+      options.allowOverflow &&
+      task.priority === "ESSENTIAL" &&
+      pool.length > 0
+    ) {
+      chosen = [...pool].sort(order)[0];
       code = "ESSENTIAL_OVERFLOW";
     }
 
     if (!chosen) {
       if (options.report) {
-        const maxCapacity = Math.max(...daySlots.map((s) => s.capacity));
         let reason: UnscheduledCode = "NO_CAPACITY";
-        if (task.estimatedMinutes > maxCapacity) {
-          reason = "TOO_LONG_FOR_ANY_SLOT";
-        } else if (task.assignmentMode === "FIXED") {
-          reason = "FIXED_ASSIGNEE_OVERLOADED";
+        if (onOrAfter.length === 0) {
+          reason = "DUE_AFTER_LAST_EVENING";
+        } else {
+          const maxCapacity = Math.max(
+            ...onOrAfter.map((r) => r.slot.capacity),
+          );
+          if (task.estimatedMinutes > maxCapacity) {
+            reason = "TOO_LONG_FOR_ANY_SLOT";
+          } else if (task.assignmentMode === "FIXED") {
+            reason = "FIXED_ASSIGNEE_OVERLOADED";
+          }
         }
         unscheduled.push({
           taskId: task.id,
