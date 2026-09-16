@@ -2,7 +2,8 @@
  * Every tunable number in the planner, in one place, versioned.
  * Change a value here and bump ALGORITHM_VERSION so old plans stay explicable.
  */
-export const ALGORITHM_VERSION = "v1";
+/** v2: nothing due after the week is pulled forward into spare time. */
+export const ALGORITHM_VERSION = "v2";
 
 export const PLANNER_WEIGHTS = {
   priority: {

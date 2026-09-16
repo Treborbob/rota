@@ -81,6 +81,7 @@ export type PlacementCode =
   | "OVERDUE"
   | "DUE_THIS_WEEK"
   | "PINNED"
+  /** Not produced since v2; kept so plans made before then still read. */
   | "PULLED_FORWARD"
   | "ESSENTIAL_OVERFLOW"
   | "CARRIED_OVER";
@@ -196,11 +197,10 @@ type Candidate = { task: PlannerTask; score: number; code: PlacementCode };
 export function selectCandidates(
   input: Pick<PlannerInput, "tasks" | "weekStart" | "today" | "pinnedTaskIds">,
   weights: PlannerWeights,
-): { primary: Candidate[]; pullForward: Candidate[] } {
+): Candidate[] {
   const weekEnd = addDaysLocal(input.weekStart, 6);
   const pinned = new Set(input.pinnedTaskIds);
-  const primary: Candidate[] = [];
-  const pullForward: Candidate[] = [];
+  const candidates: Candidate[] = [];
 
   for (const task of input.tasks) {
     const isPinned = pinned.has(task.id);
@@ -211,22 +211,21 @@ export function selectCandidates(
 
     const score = urgencyScore(task, input.today, isPinned, weights);
     if (isPinned) {
-      primary.push({ task, score, code: "PINNED" });
+      candidates.push({ task, score, code: "PINNED" });
       continue;
     }
     if (!task.nextDueOn) continue; // "whenever" one-offs are for Pick, not plans
     if (task.nextDueOn < input.today) {
-      primary.push({ task, score, code: "OVERDUE" });
+      candidates.push({ task, score, code: "OVERDUE" });
     } else if (task.nextDueOn <= weekEnd) {
-      primary.push({ task, score, code: "DUE_THIS_WEEK" });
-    } else if (daysBetween(weekEnd, task.nextDueOn) <= task.dueSoonDays) {
-      pullForward.push({ task, score, code: "PULLED_FORWARD" });
+      candidates.push({ task, score, code: "DUE_THIS_WEEK" });
     }
+    // Nothing due after the week is brought forward. A cadence is a
+    // deliberate choice the planner can't see the reasons for; Pick and
+    // "Add a task" are there when a person decides otherwise.
   }
 
-  primary.sort(compareCandidates);
-  pullForward.sort(compareCandidates);
-  return { primary, pullForward };
+  return candidates.sort(compareCandidates);
 }
 
 // ---------------------------------------------------------------------------
@@ -281,7 +280,7 @@ export function planWeek(input: PlannerInput): PlannerOutput {
     }
   }
 
-  const { primary, pullForward } = selectCandidates(input, weights);
+  const candidates = selectCandidates(input, weights);
   const placements: Placement[] = [];
   const unscheduled: Unscheduled[] = [];
   let sortOrder = 0;
@@ -423,12 +422,8 @@ export function planWeek(input: PlannerInput): PlannerOutput {
     return true;
   };
 
-  for (const candidate of primary) {
+  for (const candidate of candidates) {
     tryPlace(candidate, { allowOverflow: true, report: true });
-  }
-  // Only into genuinely spare time, and never worth an overflow entry.
-  for (const candidate of pullForward) {
-    tryPlace(candidate, { allowOverflow: false, report: false });
   }
 
   return {
@@ -441,7 +436,7 @@ export function planWeek(input: PlannerInput): PlannerOutput {
       buckets: input.buckets,
       recentMinutes: input.recentMinutes,
       pinnedTaskIds: input.pinnedTaskIds,
-      candidateCount: primary.length,
+      candidateCount: candidates.length,
     },
   };
 }

@@ -159,7 +159,7 @@ A pure service: inputs in, plan out, persist after validation. Algorithm version
 The week runs Monday to Sunday in `Europe/London`. A bucket is one member on one date, with capacity = weekday capacity unless a `CapacityOverride` exists. Buckets with zero capacity are never used. With the default seed that means nothing lands on Friday to Sunday.
 
 ### 7.2 Candidates
-Active, unarchived, unpaused tasks that are overdue, due on or before the end of the week, or manually added, excluding tasks deferred beyond the week end and tasks already placed. Tasks inside their due-soon window may be pulled forward only into genuinely spare capacity; never fill for the sake of filling.
+Active, unarchived, unpaused tasks that are overdue, due on or before the end of the week, or manually added, excluding tasks deferred beyond the week end and tasks already placed. Nothing due after the week is pulled forward into spare capacity: a cadence is deliberate and the planner cannot judge whether doing something early is worth it. Pick and "Add a task" are the person's tools for a free evening.
 
 ### 7.3 Score
 ```

@@ -82,7 +82,7 @@ describe("urgencyScore", () => {
 });
 
 describe("selectCandidates", () => {
-  it("takes overdue and due-this-week, pulls forward only within the due-soon window", () => {
+  it("takes overdue and due-this-week; never pulls later work forward", () => {
     const tasks = [
       task({ id: "overdue", nextDueOn: "2026-09-01" }),
       task({ id: "thisweek", nextDueOn: SUN }),
@@ -91,13 +91,12 @@ describe("selectCandidates", () => {
       task({ id: "whenever", nextDueOn: null }),
       task({ id: "deferred", nextDueOn: MON, deferredUntil: "2026-09-20" }),
     ];
-    const { primary, pullForward } = selectCandidates(
+    const candidates = selectCandidates(
       { tasks, weekStart: WEEK, today: MON, pinnedTaskIds: [] },
       PLANNER_WEIGHTS,
     );
-    expect(primary.map((c) => c.task.id)).toEqual(["overdue", "thisweek"]);
-    expect(primary.map((c) => c.code)).toEqual(["OVERDUE", "DUE_THIS_WEEK"]);
-    expect(pullForward.map((c) => c.task.id)).toEqual(["soon"]);
+    expect(candidates.map((c) => c.task.id)).toEqual(["overdue", "thisweek"]);
+    expect(candidates.map((c) => c.code)).toEqual(["OVERDUE", "DUE_THIS_WEEK"]);
   });
 
   it("pins beat everything, even a deferral", () => {
@@ -109,12 +108,12 @@ describe("selectCandidates", () => {
         deferredUntil: "2026-11-01",
       }),
     ];
-    const { primary } = selectCandidates(
+    const candidates = selectCandidates(
       { tasks, weekStart: WEEK, today: MON, pinnedTaskIds: ["pinned"] },
       PLANNER_WEIGHTS,
     );
-    expect(primary[0].task.id).toBe("pinned");
-    expect(primary[0].code).toBe("PINNED");
+    expect(candidates[0].task.id).toBe("pinned");
+    expect(candidates[0].code).toBe("PINNED");
   });
 
   it("breaks ties deterministically: due date, then minutes desc, then id", () => {
@@ -125,11 +124,11 @@ describe("selectCandidates", () => {
       task({ id: "d", nextDueOn: TUE, estimatedMinutes: 5 }),
     ];
     // All NORMAL; d is due sooner so it scores higher (dueSoon weight).
-    const { primary } = selectCandidates(
+    const candidates = selectCandidates(
       { tasks, weekStart: WEEK, today: MON, pinnedTaskIds: [] },
       PLANNER_WEIGHTS,
     );
-    expect(primary.map((c) => c.task.id)).toEqual(["d", "c", "a", "b"]);
+    expect(candidates.map((c) => c.task.id)).toEqual(["d", "c", "a", "b"]);
   });
 });
 
@@ -397,31 +396,19 @@ describe("planWeek", () => {
     ]);
   });
 
-  it("pulls due-soon work forward only into spare time, silently", () => {
+  it("leaves work due after the week alone, however much time is spare", () => {
+    // A fortnightly hob clean done on Saturday is due two weeks later. With
+    // an empty week it must still wait: the cadence is deliberate.
     const soon = task({
       id: "soon",
-      nextDueOn: "2026-09-15",
+      nextDueOn: addDaysLocal(SUN, 1),
       dueSoonDays: 7,
       estimatedMinutes: 25,
     });
-    const relaxed = planWeek(input({ tasks: [soon] }));
-    expect(relaxed.placements[0]).toMatchObject({
-      taskId: "soon",
-      code: "PULLED_FORWARD",
-    });
-
-    const busy = planWeek(
-      input({
-        tasks: [
-          soon,
-          ...Array.from({ length: 8 }, (_, i) =>
-            task({ id: `t${i}`, estimatedMinutes: 25, nextDueOn: MON }),
-          ),
-        ],
-      }),
-    );
-    expect(busy.placements.some((p) => p.taskId === "soon")).toBe(false);
-    expect(busy.unscheduled.some((u) => u.taskId === "soon")).toBe(false);
+    const out = planWeek(input({ tasks: [soon] }));
+    expect(out.placements).toEqual([]);
+    expect(out.unscheduled).toEqual([]);
+    expect(out.snapshot.candidateCount).toBe(0);
   });
 
   it("plans around preserved work and never re-places it", () => {

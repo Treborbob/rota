@@ -130,9 +130,14 @@ is no weekend rule: Friday to Sunday simply default to zero.
 
 Active, unpaused tasks that are overdue, due on or before the Sunday of the
 week, or added to the week by hand ("pinned"). A deferral hides a task unless
-it is pinned. Undated one-offs are never planned; they live in Pick. Tasks
-due within their due-soon window after the week are a second, optional pass:
-placed only into genuinely spare time and never reported as overflow.
+it is pinned. Undated one-offs are never planned; they live in Pick.
+
+Nothing due after the week is pulled forward, however much time is spare. A
+cadence is a deliberate choice (a two-monthly dishwasher clean costs money and
+gains nothing done early) and the planner cannot see the reasons behind it.
+Someone with a free evening uses Pick, or "Add a task" on the Week screen to
+pin a specific job into the week. Plans made before `v2` may still carry the
+`PULLED_FORWARD` code.
 
 ### Score and order
 
