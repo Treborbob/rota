@@ -22,6 +22,7 @@ import {
   loadCapacityCells,
   weekDates,
 } from "@/lib/planning/capacity";
+import { carryOverMissed } from "@/lib/planning/carry-over";
 import { generatePlan } from "@/lib/planning/generate";
 import { getDueSoonDaysDefault } from "@/lib/tasks/queries";
 import { formatMinutes } from "@/lib/tasks/view";
@@ -61,6 +62,8 @@ export type PlanMemberDay = {
   overridden: boolean;
   note: string | null;
   planned: number;
+  /** Minutes of that carried over from earlier evenings; part of `planned`. */
+  carried: number;
   items: PlanItemView[];
 };
 
@@ -123,6 +126,7 @@ export async function getPlanView(
     });
   }
   if (!plan) return null;
+  if (weekEnd >= today) await carryOverMissed(plan.id, weekStart, today);
 
   const [members, dueSoonDaysDefault, items] = await Promise.all([
     listMembers(),
@@ -208,6 +212,9 @@ export async function getPlanView(
         overridden: cell?.overridden ?? false,
         note: cell?.note ?? null,
         planned: mine.reduce((sum, v) => sum + v.minutes, 0),
+        carried: mine
+          .filter((v) => v.code === "CARRIED_OVER")
+          .reduce((sum, v) => sum + v.minutes, 0),
         items: mine,
       };
     });

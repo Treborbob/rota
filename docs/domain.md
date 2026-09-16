@@ -175,6 +175,26 @@ may overflow a slot rather than be dropped.
 | NO_ALLOWED_DAY | None of its allowed days have time |
 | FIXED_ASSIGNEE_OVERLOADED | The fixed person's slots are full |
 | TOO_LONG_FOR_ANY_SLOT | Longer than any single evening |
+| MISSED_NO_EVENING_LEFT | Missed earlier in the week, owner has no evening left |
+
+### Carry-over
+
+A planned item that was not done by the end of its evening is a debt, and
+debt has an owner. Whenever the current week is read, every item still in
+the `PLANNED` state and dated before today moves to its owner's next evening
+in the week with any minutes at all, whatever the task's assignment mode
+says. It lands on top of that evening's existing plan: nothing else moves,
+and the day simply runs over budget, shown as "60/40 min · includes 20 min
+carried over". The item is pinned there like a hand-moved one, so later
+regeneration leaves it alone, and it does not use up the slot's minutes when
+the planner runs, so the evening's normal work is not pushed off it. Missing
+it again stacks it onto the following evening. Skip, Defer or Remove are the
+ways to shed it.
+
+If the owner has no evening left in the week the item becomes
+`UNSCHEDULED` with the reason `MISSED_NO_EVENING_LEFT`; the following week's
+normal planning picks the task up as overdue. Carry-over never crosses the
+week boundary. Rules in `lib/domain/carry-over.ts`.
 
 ### Regeneration
 

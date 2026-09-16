@@ -152,6 +152,7 @@ export async function generatePlan(
           date: fromDbDate(item.plannedDate),
           minutes: item.estimatedMinutesSnapshot,
           heavy: t ? isHeavy(t) : item.estimatedMinutesSnapshot >= 30,
+          carried: item.explanationCode === "CARRIED_OVER",
         });
         excludedTaskIds.add(item.taskId);
       } else if (item.state === "SKIPPED" || item.state === "REMOVED") {

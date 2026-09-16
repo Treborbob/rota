@@ -142,6 +142,15 @@ export async function WeekView({ plan }: { plan: PlanView }) {
                   />
                 ))}
               </div>
+              {day.members.some((m) => m.carried > 0) ? (
+                <p className="mb-2 px-1.5 text-muted-foreground text-xs">
+                  Includes{" "}
+                  {formatMinutes(
+                    day.members.reduce((s, m) => s + m.carried, 0),
+                  )}{" "}
+                  carried over from earlier in the week.
+                </p>
+              ) : null}
               {day.members.every((m) => m.items.length === 0) ? (
                 <p className="px-1.5 py-2 text-muted-foreground text-xs">
                   Nothing planned.

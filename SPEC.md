@@ -187,6 +187,8 @@ Preserves completed, skipped, and removed items and anything with `manualOverrid
 
 Regeneration happens automatically after any task change, completion, void, or capacity override, and on demand from the Week screen, so the plan never drifts from the task list. Only weeks from the current one onwards are touched.
 
+**Carry-over.** A planned item left undone when its evening has passed moves, the next time the current week is read, onto its owner's next evening with any capacity, on top of that evening's plan and pinned there. It keeps its owner regardless of assignment mode and may take the day over budget; nothing else is moved. With no evening left in the week it becomes `UNSCHEDULED` and the following week plans the task as overdue.
+
 ### 7.7 Idempotency
 Plan creation is idempotent on `weekStartDate` inside a transaction. Completing a planned item twice yields one completion. `lastCompletedAt` and `nextDueAt` are recomputed in the same transaction as any history change.
 

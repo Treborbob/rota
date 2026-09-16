@@ -447,6 +447,42 @@ describe("planWeek", () => {
     expect(out.placements[0]).toMatchObject({ userId: "hannah", date: MON });
   });
 
+  it("carried-over work sits on top of the budget, not inside it", () => {
+    // Rob missed a 30-minute job on Monday; it now sits on his Tuesday.
+    // Tuesday's own 30 minutes must still be his to fill.
+    const out = planWeek(
+      input({
+        today: TUE,
+        preserved: [
+          {
+            taskId: "missed",
+            userId: "rob",
+            date: TUE,
+            minutes: 30,
+            heavy: true,
+            carried: true,
+          },
+        ],
+        tasks: [
+          task({ id: "missed" }),
+          task({
+            id: "tonight",
+            estimatedMinutes: 30,
+            nextDueOn: TUE,
+            assignmentMode: "FIXED",
+            fixedAssigneeId: "rob",
+          }),
+        ],
+      }),
+    );
+    expect(out.placements).toHaveLength(1);
+    expect(out.placements[0]).toMatchObject({
+      taskId: "tonight",
+      userId: "rob",
+      date: TUE,
+    });
+  });
+
   it("never places before today when generating mid-week", () => {
     const out = planWeek(
       input({

@@ -53,6 +53,13 @@ export type PreservedPlacement = {
   date: LocalDate;
   minutes: number;
   heavy: boolean;
+  /**
+   * Carried over from an earlier evening (see lib/domain/carry-over). Sits
+   * on top of the day's budget: it counts towards the person's load and
+   * heavy-task stacking, but does not use up the slot's minutes, so the
+   * day's normal work is not pushed off it.
+   */
+  carried?: boolean;
 };
 
 export type PlannerInput = {
@@ -75,14 +82,16 @@ export type PlacementCode =
   | "DUE_THIS_WEEK"
   | "PINNED"
   | "PULLED_FORWARD"
-  | "ESSENTIAL_OVERFLOW";
+  | "ESSENTIAL_OVERFLOW"
+  | "CARRIED_OVER";
 
 export type UnscheduledCode =
   | "NO_CAPACITY"
   | "ASSIGNEE_UNAVAILABLE"
   | "NO_ALLOWED_DAY"
   | "FIXED_ASSIGNEE_OVERLOADED"
-  | "TOO_LONG_FOR_ANY_SLOT";
+  | "TOO_LONG_FOR_ANY_SLOT"
+  | "MISSED_NO_EVENING_LEFT";
 
 export type Placement = {
   taskId: string;
@@ -120,6 +129,7 @@ export const UNSCHEDULED_MESSAGES: Record<UnscheduledCode, string> = {
   NO_ALLOWED_DAY: "None of its allowed days have any time this week",
   FIXED_ASSIGNEE_OVERLOADED: "The person who always does this is already full",
   TOO_LONG_FOR_ANY_SLOT: "Longer than any single evening's budget",
+  MISSED_NO_EVENING_LEFT: "Missed earlier this week, and no evenings left",
 };
 
 export const PLACEMENT_MESSAGES: Record<PlacementCode, string> = {
@@ -128,6 +138,7 @@ export const PLACEMENT_MESSAGES: Record<PlacementCode, string> = {
   PINNED: "Added by hand",
   PULLED_FORWARD: "Pulled forward into spare time",
   ESSENTIAL_OVERFLOW: "Essential, squeezed in over budget",
+  CARRIED_OVER: "Carried over from earlier this week",
 };
 
 export function isHeavy(
@@ -265,7 +276,7 @@ export function planWeek(input: PlannerInput): PlannerOutput {
     load[p.userId] = (load[p.userId] ?? 0) + p.minutes;
     const slot = slots.find((s) => s.userId === p.userId && s.date === p.date);
     if (slot) {
-      slot.used += p.minutes;
+      if (!p.carried) slot.used += p.minutes;
       if (p.heavy) slot.heavyCount += 1;
     }
   }

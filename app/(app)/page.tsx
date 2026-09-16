@@ -131,6 +131,12 @@ export default async function TonightPage() {
                       : `${done}/${m.items.length} · ${formatMinutes(m.planned)}`}
                   </span>
                 </h3>
+                {m.carried > 0 ? (
+                  <p className="mb-3 text-muted-foreground text-sm">
+                    Includes {formatMinutes(m.carried)} carried over from
+                    earlier in the week.
+                  </p>
+                ) : null}
                 {m.items.length === 0 ? (
                   <p className="rounded-xl border border-dashed px-4 py-3 text-muted-foreground text-sm">
                     Nothing tonight.

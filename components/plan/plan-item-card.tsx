@@ -154,6 +154,11 @@ export function PlanItemCard({
               ) : (
                 <span className="tabular-nums">{item.minutesLabel}</span>
               )}
+              {!done && item.code === "CARRIED_OVER" ? (
+                <span className="rounded-md bg-muted px-1.5 py-0.5">
+                  carried over
+                </span>
+              ) : null}
               {!compact && item.assignedTo ? (
                 <span className="inline-flex items-center gap-1">
                   <MemberAvatar
@@ -186,7 +191,9 @@ export function PlanItemCard({
         <div className="space-y-3 border-t px-3 py-3 text-sm">
           <p className="text-muted-foreground">
             {item.dueLabel} · {item.codeLabel}
-            {item.manualOverride ? " · placed by hand" : ""}
+            {item.manualOverride && item.code !== "CARRIED_OVER"
+              ? " · placed by hand"
+              : ""}
           </p>
           {item.notes ? (
             <p className="whitespace-pre-wrap leading-relaxed">{item.notes}</p>
