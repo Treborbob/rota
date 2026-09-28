@@ -199,7 +199,7 @@ Plan creation is idempotent on `weekStartDate` inside a transaction. Completing 
 Mobile bottom navigation: **Tonight · Week · Tasks · Pick · More** (More: Areas, History, Settings, Sign out). Desktop uses a sidebar with the same routes. Server components by default; client components only where interaction demands it.
 
 ```
-/              Tonight
+/              Tonight, /day/[date] for other evenings
 /week          current week, /week/[weekStart] for others
 /tasks         catalogue, /tasks/new, /tasks/[id], /tasks/[id]/edit
 /pick          "What can I do?"
@@ -210,7 +210,7 @@ Mobile bottom navigation: **Tonight · Week · Tasks · Pick · More** (More: Ar
 ```
 
 ### Tonight
-Today's local date, each member's list with combined minutes and progress, compact cards (area, name, minutes, due state), one-tap complete with optimistic update and rollback on failure, expand for notes, reassign, move, defer, skip. When nothing is planned (typically a weekend) show a calm empty state with a link to Pick.
+Today's local date, each member's list with combined minutes and progress, compact cards (area, name, minutes, due state), one-tap complete with optimistic update and rollback on failure, expand for notes, reassign, move, defer, skip. When nothing is planned (typically a weekend) show a calm empty state with a link to Pick. Chevrons and a sideways swipe page to other evenings in the same layout, so something done early can be found on its day and ticked off; it then moves to today as usual.
 
 ### Week
 One column per day that has any capacity, stacked on mobile. Per-person and total minutes, capacity warnings, an overflow section with reasons and actions (add anyway, defer, change duration, change days), regenerate button. Move and reassign use accessible controls.

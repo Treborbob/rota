@@ -23,7 +23,8 @@ const ITEMS = [
 ] as const;
 
 function isActive(pathname: string, href: string) {
-  if (href === "/") return pathname === "/";
+  // Other evenings are Tonight's screen, paged.
+  if (href === "/") return pathname === "/" || pathname.startsWith("/day/");
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
