@@ -160,7 +160,9 @@ strict, Tailwind 4, shadcn/ui on Radix ("nova" preset), Prisma 7 with
   another one (hydration error).
 - **Vercel:** the project is pinned to `framework: nextjs` in `vercel.json`;
   without it every route 404s. Deployment URLs are SSO-gated; only the custom
-  domain is public. Preview deployments can't complete Google sign-in.
+  domain is public. Only `main` deploys: `git.deploymentEnabled` turns
+  off other branches, whose builds would fail anyway (the Preview
+  environment has no `DATABASE_URL`) and couldn't complete Google sign-in.
 - **Google OAuth** is in Testing mode with both users as test users, on
   purpose: publishing needs a privacy policy page. Sessions are Rota's own,
   so the testing-mode token expiry doesn't matter.
