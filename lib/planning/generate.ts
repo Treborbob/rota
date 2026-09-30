@@ -96,6 +96,24 @@ async function loadRecentMinutes(
 }
 
 /**
+ * The week's plan row, created empty if it doesn't exist yet. The unique
+ * constraint on weekStartDate wins any race. An empty plan must be followed
+ * by generatePlan, or the week would never be planned.
+ */
+export async function ensurePlan(tx: Tx, weekStart: LocalDate) {
+  return tx.weeklyPlan.upsert({
+    where: { weekStartDate: toDbDate(weekStart) },
+    create: {
+      weekStartDate: toDbDate(weekStart),
+      generatedAt: new Date(),
+      algorithmVersion: ALGORITHM_VERSION,
+      inputSnapshot: {},
+    },
+    update: {},
+  });
+}
+
+/**
  * Generate or regenerate the plan for a week. Idempotent on weekStart.
  * Returns the plan id.
  */
@@ -117,17 +135,9 @@ export async function generatePlan(
   const taskById = new Map(tasks.map((t) => [t.id, t]));
 
   return db.$transaction(async (tx: Tx) => {
-    // Idempotent create: the unique constraint on weekStartDate wins any race.
-    const plan = await tx.weeklyPlan.upsert({
-      where: { weekStartDate: toDbDate(weekStart) },
-      create: {
-        weekStartDate: toDbDate(weekStart),
-        generatedAt: new Date(),
-        algorithmVersion: ALGORITHM_VERSION,
-        inputSnapshot: {},
-      },
-      update: {},
-      include: { items: true },
+    const plan = await ensurePlan(tx, weekStart);
+    const items = await tx.plannedTask.findMany({
+      where: { weeklyPlanId: plan.id },
     });
 
     const previousPinned = ((plan.inputSnapshot as SnapshotShape | null)
@@ -140,7 +150,7 @@ export async function generatePlan(
     const excludedTaskIds = new Set<string>();
     const replaceableIds: string[] = [];
 
-    for (const item of plan.items) {
+    for (const item of items) {
       const keep =
         item.state === "COMPLETED" ||
         (item.state === "PLANNED" && item.manualOverride);
@@ -161,6 +171,17 @@ export async function generatePlan(
         replaceableIds.push(item.id);
       }
     }
+
+    // Work carried over into a later week is owed there, not here too.
+    const carriedLater = await tx.plannedTask.findMany({
+      where: {
+        state: "PLANNED",
+        explanationCode: "CARRIED_OVER",
+        weeklyPlan: { weekStartDate: { gt: toDbDate(weekStart) } },
+      },
+      select: { taskId: true },
+    });
+    for (const c of carriedLater) excludedTaskIds.add(c.taskId);
 
     const input: PlannerInput = {
       weekStart,

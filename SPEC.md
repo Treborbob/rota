@@ -101,7 +101,7 @@ Better Auth's user table plus `active`. Every active user is a household member.
 `userId`, `weekday` (1–7), `minutes`. Unique on `(userId, weekday)`. Seeded 30/30/30/20/0/0/0 and editable in Settings.
 
 ### CapacityOverride
-`userId`, `localDate`, `minutes`, `note`. Unique on `(userId, localDate)`. Zero minutes means unavailable. Covers "out Tuesday" and "only 15 minutes tonight".
+`userId`, `localDate`, `minutes`, `note`. Unique on `(userId, localDate)`. Zero minutes means unavailable ("away"). Covers "out Tuesday", "only 15 minutes tonight" and, set over a range from Settings, a holiday.
 
 ### Area
 `name`, `icon` (known key set), `colour` (known token set), `sortOrder`, `active`. Seed: Kitchen, Lounge, Hall & Stairs, Main Bedroom, Other Bedrooms, Bathrooms, Office, Utility & Appliances, Whole House, Outside.
@@ -156,7 +156,7 @@ Due states: Not due · Due soon · Due · Overdue · Deferred · Paused.
 A pure service: inputs in, plan out, persist after validation. Algorithm version string starts at `v1`. Generated lazily the first time anyone opens the app in a new week, or on demand from the Week screen.
 
 ### 7.1 Window and buckets
-The week runs Monday to Sunday in `Europe/London`. A bucket is one member on one date, with capacity = weekday capacity unless a `CapacityOverride` exists. Buckets with zero capacity are never used. With the default seed that means nothing lands on Friday to Sunday.
+The week runs Monday to Sunday in `Europe/London`. A bucket is one member on one date, with capacity = weekday capacity unless a `CapacityOverride` exists. Buckets with zero capacity are never used by the planner. With the default seed that means nothing is planned Friday to Sunday; only work carried over or pushed by a person can land there.
 
 ### 7.2 Candidates
 Active, unarchived, unpaused tasks that are overdue, due on or before the end of the week, or manually added, excluding tasks deferred beyond the week end and tasks already placed. Nothing due after the week is pulled forward into spare capacity: a cadence is deliberate and the planner cannot judge whether doing something early is worth it. Pick and "Add a task" are the person's tools for a free evening.
@@ -187,7 +187,7 @@ Preserves completed, skipped, and removed items and anything with `manualOverrid
 
 Regeneration happens automatically after any task change, completion, void, or capacity override, and on demand from the Week screen, so the plan never drifts from the task list. Only weeks from the current one onwards are touched.
 
-**Carry-over.** A planned item left undone when its evening has passed moves, the next time the current week is read, onto its owner's next evening with any capacity, on top of that evening's plan and pinned there. It keeps its owner regardless of assignment mode and may take the day over budget; nothing else is moved. With no evening left in the week it becomes `UNSCHEDULED` and the following week plans the task as overdue.
+**Carry-over.** A planned item left undone when its day has passed moves, the next time a current or future week is read, onto today; "Push to tomorrow" on tonight's item moves it onto tomorrow. Either way it keeps its owner regardless of assignment mode, sits on top of that day's plan pinned there, and may take the day over budget; nothing else is moved. It ignores capacity, weekends and week boundaries (Thursday's leftovers are Friday's, Sunday's are next Monday's) and skips only days its owner is away. Arriving in another week, it replaces whatever that week had planned for the task.
 
 ### 7.7 Idempotency
 Plan creation is idempotent on `weekStartDate` inside a transaction. Completing a planned item twice yields one completion. `lastCompletedAt` and `nextDueAt` are recomputed in the same transaction as any history change.
@@ -210,7 +210,7 @@ Mobile bottom navigation: **Tonight · Week · Tasks · Pick · More** (More: Ar
 ```
 
 ### Tonight
-Today's local date, each member's list with combined minutes and progress, compact cards (area, name, minutes, due state), one-tap complete with optimistic update and rollback on failure, expand for notes, reassign, move, defer, skip. When nothing is planned (typically a weekend) show a calm empty state with a link to Pick. Chevrons and a sideways swipe page to other evenings in the same layout, so something done early can be found on its day and ticked off; it then moves to today as usual.
+Today's local date, each member's list with combined minutes and progress, compact cards (area, name, minutes, due state), one-tap complete with optimistic update and rollback on failure, expand for notes, reassign, move, push to tomorrow, defer, skip. When nothing is planned (typically a weekend) show a calm empty state with a link to Pick. Chevrons and a sideways swipe page to other evenings in the same layout, so something done early can be found on its day and ticked off; it then moves to today as usual.
 
 ### Week
 One column per day that has any capacity, stacked on mobile. Per-person and total minutes, capacity warnings, an overflow section with reasons and actions (add anyway, defer, change duration, change days), regenerate button. Move and reassign use accessible controls.
@@ -292,14 +292,14 @@ No end-to-end suite. UI is verified by driving the running app in the browser du
 **3 — Polish.** Pick screen, PWA assets and iOS install flow, security headers, accessibility pass, docs, production setup checklist. Exit: acceptance scenarios pass.
 
 ### Post-v1 candidates
-Passkeys, Sign in with Apple, web push, offline completion queue, holiday mode, a third member, condition-based tasks, seasonal windows, data export, Home Assistant.
+Passkeys, Sign in with Apple, web push, offline completion queue, a third member, condition-based tasks, seasonal windows, data export, Home Assistant.
 
 ---
 
 ## 16. Acceptance scenarios
 
 - **Mixed cadence.** Weekly dusting, four-weekly sofa vacuum, six-weekly filters, quarterly windows: the week contains only what is due or reasonably soon, and each completion yields the right next date.
-- **Weekend by default.** With default capacities, a task due Saturday is not done early: it shows under "Waiting for next week", is overdue on Monday and is done then, after which it re-anchors to Monday. Nothing is placed Friday to Sunday. Giving Saturday 60 minutes in Settings allows Saturday placement.
+- **Weekend by default.** With default capacities, a task due Saturday is not done early: it shows under "Waiting for next week", is overdue on Monday and is done then, after which it re-anchors to Monday. The planner places nothing Friday to Sunday. Giving Saturday 60 minutes in Settings allows Saturday placement.
 - **Balanced pair.** Both free for 30 minutes; two 15-minute tasks and one 30-minute task split by minutes, not count. Fixed and alternate rules hold.
 - **Changed availability.** Hannah unavailable Tuesday: regeneration moves only unaffected work and never gives her Tuesday.
 - **Late completion.** A four-week task done five days late is next due four weeks from the actual completion.
@@ -307,7 +307,9 @@ Passkeys, Sign in with Apple, web push, offline completion queue, holiday mode, 
 - **Closed door.** Rob and Hannah sign in; any other Google account is refused and sees no data.
 - **Paused in winter.** Lawn mowing paused in December generates nothing and shows no overdue count. Resumed in March it is due once, not twelve times.
 - **Corrected history.** Voiding a completion keeps the audit trail, recomputes due state, and updates the current plan.
-- **Overflow is visible.** Excess work appears in "Couldn't fit this week" with reasons, never silently dropped or pushed to a zero-capacity day.
+- **Overflow is visible.** Excess work appears in "Couldn't fit this week" with reasons, never silently dropped or planned onto a zero-capacity day.
+- **Not tonight.** A three-weekly job due Monday, pushed four times, is on Friday over budget; pushed three more, it is on next Monday, still over budget and pushing nothing else off.
+- **Holiday.** Both away for a fortnight: nothing is planned in it, and anything carried over waits for the first day back.
 - **Sunday afternoon.** Pick shows something quick and not unpleasant; completing it records history and advances recurrence.
 - **Mobile.** On an iPhone viewport: sign in, see tonight, read notes, reassign, complete, confirm, with no horizontal scrolling.
 

@@ -5,8 +5,10 @@
 /**
  * v2: nothing due after the week is pulled forward into spare time.
  * v3: a task goes on its due day or the nearest evening after, never earlier.
+ * v4: missed and pushed work goes to the next day its owner isn't away,
+ *     whatever that day's budget, across weekends and into the next week.
  */
-export const ALGORITHM_VERSION = "v3";
+export const ALGORITHM_VERSION = "v4";
 
 export const PLANNER_WEIGHTS = {
   priority: {

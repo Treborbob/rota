@@ -157,7 +157,7 @@ export async function WeekView({ plan }: { plan: PlanView }) {
                   {formatMinutes(
                     day.members.reduce((s, m) => s + m.carried, 0),
                   )}{" "}
-                  carried over from earlier in the week.
+                  carried over from an earlier day.
                 </p>
               ) : null}
               {day.members.every((m) => m.items.length === 0) ? (

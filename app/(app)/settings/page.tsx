@@ -1,19 +1,39 @@
 import { PageHeader } from "@/components/page-header";
+import { AwayForm, type AwayPeriod } from "@/components/settings/away-form";
 import { CapacityForm } from "@/components/settings/capacity-form";
 import { HouseholdForm } from "@/components/settings/household-form";
+import { consecutiveRanges, formatShortDate, todayLocal } from "@/lib/dates";
 import { db } from "@/lib/db";
 import { firstName, listMembers } from "@/lib/members";
+import { loadAwayDays } from "@/lib/planning/capacity";
 import { requireUser } from "@/lib/session";
 
 export const metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
   const user = await requireUser();
+  const today = todayLocal();
   const [household, members, capacities] = await Promise.all([
     db.household.findFirst(),
     listMembers(),
     db.weekdayCapacity.findMany(),
   ]);
+  const away = await loadAwayDays(
+    members.map((m) => m.id),
+    today,
+  );
+  const periods: AwayPeriod[] = members.flatMap((m) =>
+    consecutiveRanges(
+      away.filter((a) => a.userId === m.id).map((a) => a.date),
+    ).map((r) => ({
+      key: `${m.id}:${r.from}`,
+      who: firstName(m.name),
+      label:
+        r.from === r.to
+          ? formatShortDate(r.from)
+          : `${formatShortDate(r.from)} to ${formatShortDate(r.to)}`,
+    })),
+  );
 
   const minutesFor = (userId: string) =>
     [1, 2, 3, 4, 5, 6, 7].map(
@@ -45,6 +65,11 @@ export default async function SettingsPage() {
             minutes={minutesFor(m.id)}
           />
         ))}
+        <AwayForm
+          members={members.map((m) => ({ id: m.id, name: firstName(m.name) }))}
+          today={today}
+          periods={periods}
+        />
         <section className="rounded-xl border">
           <h3 className="border-b px-4 py-3 font-medium">Members</h3>
           <ul className="divide-y">

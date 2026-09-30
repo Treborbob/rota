@@ -10,15 +10,22 @@ import {
 } from "@/lib/action-state";
 import {
   addDaysLocal,
+  daysBetween,
+  formatDayAhead,
   fromDbDate,
   isLocalDate,
+  startOfWeekLocal,
   toDbDate,
   todayLocal,
 } from "@/lib/dates";
 import { db } from "@/lib/db";
+import { pushTarget } from "@/lib/domain/carry-over";
 import { elapsedMinutes } from "@/lib/domain/duration";
 import { DomainError, userMessage } from "@/lib/errors";
-import { generatePlan } from "@/lib/planning/generate";
+import { listMembers } from "@/lib/members";
+import { loadAwayDays } from "@/lib/planning/capacity";
+import { moveCarried } from "@/lib/planning/carry-over";
+import { generatePlan, replanUpcomingWeeks } from "@/lib/planning/generate";
 import { currentWeekStart } from "@/lib/planning/queries";
 import { requireUser } from "@/lib/session";
 import { skipOccurrence } from "@/lib/tasks/actions";
@@ -137,6 +144,46 @@ export async function skipPlannedItem(
   return result;
 }
 
+/**
+ * "Not tonight": today's job goes to its owner's next day that they aren't
+ * away, on top of that day's plan, even a Friday or next Monday.
+ */
+export async function pushPlannedItem(
+  plannedTaskId: string,
+): Promise<ActionState> {
+  await requireUser();
+  const today = todayLocal();
+  const item = await db.plannedTask.findUniqueOrThrow({
+    where: { id: plannedTaskId },
+    select: {
+      taskId: true,
+      state: true,
+      plannedDate: true,
+      assignedToId: true,
+      weeklyPlan: { select: { weekStartDate: true } },
+    },
+  });
+  if (
+    item.state !== "PLANNED" ||
+    !item.assignedToId ||
+    fromDbDate(item.plannedDate) !== today
+  ) {
+    return failure("Only tonight's jobs can be pushed to another day.");
+  }
+  const away = await loadAwayDays([item.assignedToId], today);
+  const to = pushTarget(item.assignedToId, today, away);
+  try {
+    await moveCarried([
+      { id: plannedTaskId, taskId: item.taskId, from: today, to },
+    ]);
+  } catch (error) {
+    return failure(userMessage(error, "Couldn't move that. Try again."));
+  }
+  revalidatePlanPaths(fromDbDate(item.weeklyPlan.weekStartDate));
+  revalidatePlanPaths(startOfWeekLocal(to));
+  return success(`Moved to ${formatDayAhead(to, today)}.`);
+}
+
 const moveSchema = z.object({
   plannedTaskId: z.string().min(1),
   date: z.string().refine(isLocalDate, "Pick a day"),
@@ -240,4 +287,86 @@ export async function setCapacityOverride(
   }
   revalidatePlanPaths(weekStart);
   return success(reset ? "Back to the usual." : "Updated and re-planned.");
+}
+
+const awaySchema = z.object({
+  who: z.string().min(1, "Pick who"),
+  from: z.string().refine(isLocalDate, "Pick a day"),
+  to: z.string().refine(isLocalDate, "Pick a day"),
+});
+
+/** Longest single away range, so a typo in the year can't write 400 rows. */
+const MAX_AWAY_DAYS = 62;
+
+/**
+ * A holiday: 0-minute overrides for every day in the range, so nothing is
+ * planned and carried jobs wait for the first day back. "Not away after
+ * all" clears the 0-minute overrides in the range instead.
+ */
+export async function setAway(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireUser();
+  const parsed = awaySchema.safeParse(formDataToObject(formData));
+  if (!parsed.success) {
+    return failure("Pick who and the days.", fieldErrorsFrom(parsed.error));
+  }
+  const { who, from, to } = parsed.data;
+  if (from < todayLocal()) {
+    return failure("Pick today or later.", { from: "Today or later" });
+  }
+  if (to < from) {
+    return failure("The last day is before the first.", {
+      to: "On or after the first day",
+    });
+  }
+  if (daysBetween(from, to) >= MAX_AWAY_DAYS) {
+    return failure("Two months at most at a time.", {
+      to: "Within two months of the first day",
+    });
+  }
+  const members = await listMembers();
+  const userIds = members
+    .filter((m) => who === "all" || m.id === who)
+    .map((m) => m.id);
+  if (userIds.length === 0) return failure("Pick who.", { who: "Pick who" });
+
+  const back = formData.get("back") === "1";
+  if (back) {
+    await db.capacityOverride.deleteMany({
+      where: {
+        userId: { in: userIds },
+        minutes: 0,
+        localDate: { gte: toDbDate(from), lte: toDbDate(to) },
+      },
+    });
+  } else {
+    const dates = Array.from({ length: daysBetween(from, to) + 1 }, (_, i) =>
+      addDaysLocal(from, i),
+    );
+    await db.$transaction(
+      userIds.flatMap((userId) =>
+        dates.map((date) =>
+          db.capacityOverride.upsert({
+            where: { userId_localDate: { userId, localDate: toDbDate(date) } },
+            create: {
+              userId,
+              localDate: toDbDate(date),
+              minutes: 0,
+              note: "Away",
+            },
+            update: { minutes: 0, note: "Away" },
+          }),
+        ),
+      ),
+    );
+  }
+  await replanUpcomingWeeks();
+  revalidatePlanPaths();
+  return success(
+    back
+      ? "Back to the usual minutes."
+      : "Marked away. The plan works around it.",
+  );
 }

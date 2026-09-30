@@ -1,5 +1,6 @@
 import {
   addDaysLocal,
+  formatDayAhead,
   formatLocalDate,
   fromDbDate,
   type LocalDate,
@@ -8,6 +9,7 @@ import {
   todayLocal,
 } from "@/lib/dates";
 import { db } from "@/lib/db";
+import { pushTarget } from "@/lib/domain/carry-over";
 import { classifyDueState, describeDueState } from "@/lib/domain/due-state";
 import {
   isShortfall,
@@ -20,6 +22,7 @@ import type { PlannedTaskState, Priority } from "@/lib/generated/prisma/client";
 import { firstName, listMembers, type Member } from "@/lib/members";
 import {
   type CapacityCell,
+  loadAwayDays,
   loadCapacityCells,
   weekDates,
 } from "@/lib/planning/capacity";
@@ -45,6 +48,8 @@ export type PlanItemView = {
   unpleasant: boolean;
   assignedTo: { id: string; name: string } | null;
   date: LocalDate | null;
+  /** Where "push to tomorrow" would put it; only tonight's undone jobs. */
+  pushTo: { date: LocalDate; label: string } | null;
   state: PlannedTaskState;
   code: string;
   codeLabel: string;
@@ -63,7 +68,7 @@ export type PlanMemberDay = {
   overridden: boolean;
   note: string | null;
   planned: number;
-  /** Minutes of that carried over from earlier evenings; part of `planned`. */
+  /** Minutes of that carried over from earlier days; part of `planned`. */
   carried: number;
   items: PlanItemView[];
 };
@@ -122,6 +127,9 @@ export async function getPlanView(
   const weekEnd = addDaysLocal(weekStart, 6);
   const generateIfMissing = options.generateIfMissing ?? weekEnd >= today; // never auto-plan the past
 
+  // First, so leftovers are where they belong before anything is read.
+  if (weekEnd >= today) await carryOverMissed(today);
+
   let plan = await db.weeklyPlan.findUnique({
     where: { weekStartDate: toDbDate(weekStart) },
     select: { id: true, generatedAt: true },
@@ -134,7 +142,6 @@ export async function getPlanView(
     });
   }
   if (!plan) return null;
-  if (weekEnd >= today) await carryOverMissed(plan.id, weekStart, today);
 
   const [members, dueSoonDaysDefault, items] = await Promise.all([
     listMembers(),
@@ -165,10 +172,16 @@ export async function getPlanView(
       },
     }),
   ]);
-  const cells = await loadCapacityCells(
-    weekStart,
-    members.map((m) => m.id),
-  );
+  const [cells, away] = await Promise.all([
+    loadCapacityCells(
+      weekStart,
+      members.map((m) => m.id),
+    ),
+    loadAwayDays(
+      members.map((m) => m.id),
+      today,
+    ),
+  ]);
 
   const views: PlanItemView[] = items.map((item) => {
     const dueOn = fromDbDate(item.dueOnSnapshot);
@@ -179,6 +192,11 @@ export async function getPlanView(
       deferredUntil: null,
       today,
     });
+    const date = fromDbDate(item.plannedDate);
+    const pushTo =
+      item.state === "PLANNED" && date === today && item.assignedToId
+        ? pushTarget(item.assignedToId, today, away)
+        : null;
     return {
       id: item.id,
       taskId: item.taskId,
@@ -190,7 +208,10 @@ export async function getPlanView(
       priority: item.prioritySnapshot,
       unpleasant: item.task.unpleasant,
       assignedTo: item.assignedTo,
-      date: fromDbDate(item.plannedDate),
+      date,
+      pushTo: pushTo
+        ? { date: pushTo, label: formatDayAhead(pushTo, today) }
+        : null,
       state: item.state,
       code: item.explanationCode,
       codeLabel: codeLabel(item.explanationCode),

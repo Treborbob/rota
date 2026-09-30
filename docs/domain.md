@@ -122,7 +122,9 @@ with.
 ### Capacity
 
 Each member has a minute budget per ISO weekday (Settings), and any single
-date can be overridden ("out Tuesday", "only 15 minutes tonight"). A slot is
+date can be overridden ("out Tuesday", "only 15 minutes tonight"). An
+override of 0 minutes means away; Settings can set one over a range of days
+for a holiday. A slot is
 one member on one date with more than zero minutes, on or after today. There
 is no weekend rule: Friday to Sunday simply default to zero.
 
@@ -196,7 +198,7 @@ Once done there it re-anchors to that weekday and settles.
 | NO_ALLOWED_DAY | None of its allowed days have time |
 | FIXED_ASSIGNEE_OVERLOADED | The fixed person's slots are full |
 | TOO_LONG_FOR_ANY_SLOT | Longer than any single evening |
-| MISSED_NO_EVENING_LEFT | Missed earlier in the week, owner has no evening left |
+| MISSED_NO_EVENING_LEFT | Before `v4`: missed earlier in the week, owner had no evening left |
 | DUE_AFTER_LAST_EVENING | Due after the last evening with time; waits for next week, not a shortfall |
 
 Every reason except `DUE_AFTER_LAST_EVENING` is a **shortfall**: more minutes
@@ -205,24 +207,44 @@ in an evening would fix it. The Week and Tonight screens sum those minutes
 shortfall is one person's fixed jobs and someone else has spare time, say
 who and when.
 
-### Carry-over
+### Carry-over and pushing
 
-A planned item that was not done by the end of its evening is a debt, and
-debt has an owner. Whenever the current week is read, every item still in
-the `PLANNED` state and dated before today moves to its owner's next evening
-in the week with any minutes at all, whatever the task's assignment mode
-says. It lands on top of that evening's existing plan: nothing else moves,
-and the day simply runs over budget, shown as "60/40 min · includes 20 min
-carried over". The item is pinned there like a hand-moved one, so later
-regeneration leaves it alone, and it does not use up the slot's minutes when
-the planner runs, so the evening's normal work is not pushed off it. Missing
-it again stacks it onto the following evening. Skip, Defer or Remove are the
-ways to shed it.
+A planned item that was not done by the end of its day is a debt, and debt
+has an owner. Whenever a current or future week is read, every item still
+in the `PLANNED` state and dated before today, in any week, moves to today.
+"Push to tomorrow" on one of tonight's items does the same thing on
+purpose: it moves to tomorrow. Either way the item stays with its owner,
+whatever the task's assignment mode says, and lands on top of that day's
+existing plan: nothing else moves, and the day simply runs over budget,
+shown as "60/40 min · includes 20 min carried over". The item is pinned
+there like a hand-moved one, so later regeneration leaves it alone, and it
+does not use up the day's minutes when the planner runs, so the day's
+normal work is not pushed off it. Missing or pushing it again stacks it
+onto the following day. Skip, Defer or Not this week are the ways to shed
+it.
 
-If the owner has no evening left in the week the item becomes
-`UNSCHEDULED` with the reason `MISSED_NO_EVENING_LEFT`; the following week's
-normal planning picks the task up as overdue. Carry-over never crosses the
-week boundary. Rules in `lib/domain/carry-over.ts`.
+Capacity does not matter to where it lands. Thursday's leftovers are
+Friday's, even with no minutes budgeted, and Sunday's are next Monday's: if
+the week got away from you, the weekend is where it has to be done. The
+only days it skips are ones its owner is **away**, meaning an override of 0
+minutes (a single "out Tuesday", or a holiday set over a range in
+Settings). An item already carried onto a day its owner is later marked
+away moves on to the next day they aren't.
+
+Arriving in another week, the item joins that week's plan and replaces
+whatever the planner had put there for the task, and that week is re-planned
+around it. If that week has already settled the task (done, skipped, taken
+off or placed by hand) the leftover is dropped instead. While an item sits
+in a later week, earlier weeks don't plan the task again.
+
+A leftover whose task has moved on since it was planned is dropped rather
+than carried: its due date changed (done or skipped some other way, or
+edited), or the task is archived, paused or deferred past today. The
+following week's normal planning picks up anything still due.
+
+Rules in `lib/domain/carry-over.ts`. Plans before `v4` stranded leftovers
+with no evening left in the week as `MISSED_NO_EVENING_LEFT`; that code is
+no longer produced.
 
 ### Regeneration
 

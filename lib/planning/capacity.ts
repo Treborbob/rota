@@ -3,8 +3,10 @@ import {
   fromDbDate,
   isoWeekday,
   type LocalDate,
+  toDbDate,
 } from "@/lib/dates";
 import { db } from "@/lib/db";
+import type { AwayDay } from "@/lib/domain/carry-over";
 import type { PlannerBucket } from "@/lib/domain/planner";
 
 export function weekDates(weekStart: LocalDate): LocalDate[] {
@@ -68,4 +70,20 @@ export async function loadCapacityCells(
 
 export function toBuckets(cells: CapacityCell[]): PlannerBucket[] {
   return cells.map(({ userId, date, minutes }) => ({ userId, date, minutes }));
+}
+
+/** Days from `from` onwards that someone is marked away (0-minute overrides). */
+export async function loadAwayDays(
+  memberIds: string[],
+  from: LocalDate,
+): Promise<AwayDay[]> {
+  const rows = await db.capacityOverride.findMany({
+    where: {
+      userId: { in: memberIds },
+      minutes: 0,
+      localDate: { gte: toDbDate(from) },
+    },
+    select: { userId: true, localDate: true },
+  });
+  return rows.map((r) => ({ userId: r.userId, date: fromDbDate(r.localDate) }));
 }

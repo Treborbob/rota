@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  consecutiveRanges,
   daysBetween,
+  formatDayAhead,
   fromDbDate,
   isoWeekday,
   startOfLocalDay,
@@ -50,4 +52,68 @@ describe("local dates in Europe/London", () => {
     expect(daysBetween("2026-03-27", "2026-03-30")).toBe(3);
     expect(daysBetween("2026-10-23", "2026-10-26")).toBe(3);
   });
+});
+
+describe("formatDayAhead", () => {
+  const today = "2026-09-17"; // Thursday
+  const cases: [string, string][] = [
+    ["2026-09-18", "tomorrow"],
+    ["2026-09-19", "Saturday"],
+    ["2026-09-23", "Wednesday"],
+    ["2026-09-24", "Thursday 24 September"],
+    ["2027-01-04", "Monday 4 January 2027"],
+  ];
+  for (const [date, expected] of cases) {
+    it(`${date} reads as ${expected}`, () => {
+      expect(formatDayAhead(date, today)).toBe(expected);
+    });
+  }
+});
+
+describe("consecutiveRanges", () => {
+  const cases: {
+    name: string;
+    dates: string[];
+    expected: { from: string; to: string }[];
+  }[] = [
+    { name: "nothing", dates: [], expected: [] },
+    {
+      name: "one day",
+      dates: ["2026-10-12"],
+      expected: [{ from: "2026-10-12", to: "2026-10-12" }],
+    },
+    {
+      name: "a run and a gap, unsorted and repeated",
+      dates: [
+        "2026-10-14",
+        "2026-10-12",
+        "2026-10-13",
+        "2026-10-16",
+        "2026-10-13",
+      ],
+      expected: [
+        { from: "2026-10-12", to: "2026-10-14" },
+        { from: "2026-10-16", to: "2026-10-16" },
+      ],
+    },
+    {
+      name: "across a month end and the clocks going back",
+      dates: [
+        "2026-10-24",
+        "2026-10-25",
+        "2026-10-26",
+        "2026-10-31",
+        "2026-11-01",
+      ],
+      expected: [
+        { from: "2026-10-24", to: "2026-10-26" },
+        { from: "2026-10-31", to: "2026-11-01" },
+      ],
+    },
+  ];
+  for (const c of cases) {
+    it(c.name, () => {
+      expect(consecutiveRanges(c.dates)).toEqual(c.expected);
+    });
+  }
 });

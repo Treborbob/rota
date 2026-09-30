@@ -7,6 +7,7 @@ import {
   Flame,
   MoveRight,
   Play,
+  Redo2,
   SkipForward,
   Timer,
   X,
@@ -51,6 +52,7 @@ import {
   cancelStart,
   completePlannedItem,
   movePlannedItem,
+  pushPlannedItem,
   removePlannedItem,
   skipPlannedItem,
   startPlannedItem,
@@ -230,6 +232,17 @@ export function PlanItemCard({
                   Start
                 </Button>
               )}
+              {item.pushTo ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pending}
+                  onClick={() => run(() => pushPlannedItem(item.id))}
+                >
+                  <Redo2 />
+                  Push to {item.pushTo.label}
+                </Button>
+              ) : null}
               <MoveDialog item={item} days={days} members={members} />
               <AlertDialog>
                 <AlertDialogTrigger asChild>

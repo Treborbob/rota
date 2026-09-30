@@ -204,8 +204,8 @@ export async function DayView({
                 </h3>
                 {m.carried > 0 ? (
                   <p className="mb-3 text-muted-foreground text-sm">
-                    Includes {formatMinutes(m.carried)} carried over from
-                    earlier in the week.
+                    Includes {formatMinutes(m.carried)} carried over from an
+                    earlier day.
                   </p>
                 ) : null}
                 {m.items.length === 0 ? (

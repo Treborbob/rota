@@ -92,6 +92,7 @@ export type UnscheduledCode =
   | "NO_ALLOWED_DAY"
   | "FIXED_ASSIGNEE_OVERLOADED"
   | "TOO_LONG_FOR_ANY_SLOT"
+  /** Not produced since v4; kept so plans made before then still read. */
   | "MISSED_NO_EVENING_LEFT"
   | "DUE_AFTER_LAST_EVENING";
 
@@ -147,7 +148,7 @@ export const PLACEMENT_MESSAGES: Record<PlacementCode, string> = {
   PINNED: "Added by hand",
   PULLED_FORWARD: "Pulled forward into spare time",
   ESSENTIAL_OVERFLOW: "Essential, squeezed in over budget",
-  CARRIED_OVER: "Carried over from earlier this week",
+  CARRIED_OVER: "Carried over from an earlier day",
 };
 
 export function isHeavy(
