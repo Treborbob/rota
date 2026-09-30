@@ -135,6 +135,30 @@ export function formatFriendlyDate(
   return formatLocalDate(date, sameYear ? "EEEE d MMMM" : "EEEE d MMMM yyyy");
 }
 
+/** "tomorrow", a weekday within the week ahead, else the friendly date. */
+export function formatDayAhead(
+  date: LocalDate,
+  today: LocalDate = todayLocal(),
+): string {
+  const offset = daysBetween(today, date);
+  if (offset === 1) return "tomorrow";
+  if (offset > 1 && offset < 7) return formatLocalDate(date, "EEEE");
+  return formatFriendlyDate(date, today);
+}
+
+/** Sorted runs of consecutive days: [Mon, Tue, Thu] → Mon–Tue, Thu–Thu. */
+export function consecutiveRanges(
+  dates: LocalDate[],
+): { from: LocalDate; to: LocalDate }[] {
+  const ranges: { from: LocalDate; to: LocalDate }[] = [];
+  for (const date of [...new Set(dates)].sort()) {
+    const last = ranges.at(-1);
+    if (last && addDaysLocal(last.to, 1) === date) last.to = date;
+    else ranges.push({ from: date, to: date });
+  }
+  return ranges;
+}
+
 /** "Thu 22 Oct" */
 export function formatShortDate(date: LocalDate): string {
   return formatLocalDate(date, "EEE d MMM");

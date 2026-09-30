@@ -35,9 +35,13 @@ export function CapacityChip({
   const [open, setOpen] = useState(false);
   const onSuccess = useCallback(() => setOpen(false), []);
   const [state, formAction] = useToastAction(setCapacityOverride, onSuccess);
-  const over = member.capacity > 0 && member.planned > member.capacity;
+  const over = member.planned > member.capacity;
   const ratio =
-    member.capacity > 0 ? Math.min(1, member.planned / member.capacity) : 0;
+    member.capacity > 0
+      ? Math.min(1, member.planned / member.capacity)
+      : over
+        ? 1
+        : 0;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -66,7 +70,7 @@ export function CapacityChip({
             />
           </span>
           <span className="w-16 shrink-0 text-right tabular-nums text-muted-foreground">
-            {member.capacity === 0
+            {member.capacity === 0 && member.planned === 0
               ? "off"
               : `${member.planned}/${member.capacity}`}
           </span>
