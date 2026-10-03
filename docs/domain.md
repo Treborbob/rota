@@ -170,9 +170,11 @@ a cadence is deliberate, doing a job early wastes the effort, and because
 most tasks re-anchor to the day they were done, an early placement shifts
 every later occurrence too. (The old "on or before the due date, emptiest
 evening" rule ratcheted every weekly job towards Monday.) Overdue work
-therefore lands on the first evening from today. A task's preferred weekday
-wins outright when it has room, because a person chose it, and a task added
-to the week by hand may go anywhere in it.
+therefore lands on the first evening from today, and a task added to the
+week by hand may go anywhere in it. Within those evenings a task's preferred
+weekday wins outright when it has room, because a person chose it; it never
+pulls a task earlier than its due date. (Before `v5` it did, so a weekly job
+preferring Monday that was done on a Saturday came back two days later.)
 
 For each candidate in order, the eligible slots (the person or people it may
 go to, on an allowed weekday, on or after the due date) are sorted by date,

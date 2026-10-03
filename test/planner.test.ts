@@ -201,15 +201,6 @@ describe("planWeek", () => {
     });
   });
 
-  it("a preferred weekday before the due date still wins", () => {
-    const out = planWeek(
-      input({
-        tasks: [task({ id: "t", preferredWeekday: 1, nextDueOn: THU })],
-      }),
-    );
-    expect(out.placements[0].date).toBe(MON);
-  });
-
   it("Scenario B (cont.): giving Saturday minutes allows Saturday placement", () => {
     const out = planWeek(
       input({
@@ -311,13 +302,60 @@ describe("planWeek", () => {
     expect(out.placements[0].userId).toBe("hannah");
   });
 
-  it("prefers the preferred weekday when it fits", () => {
-    const out = planWeek(
-      input({
-        tasks: [task({ id: "t", preferredWeekday: 3, nextDueOn: SUN })],
-      }),
-    );
-    expect(out.placements[0].date).toBe(WED);
+  describe("preferred weekday", () => {
+    const LAST_THU = addDaysLocal(WEEK, -4);
+    it.each([
+      {
+        name: "wins over the due day when it comes after it",
+        preferredWeekday: 3,
+        nextDueOn: MON,
+        pinned: false,
+        expected: WED,
+      },
+      {
+        name: "never pulls a task before its due date (weekly job done Saturday)",
+        preferredWeekday: 1,
+        nextDueOn: THU,
+        pinned: false,
+        expected: THU,
+      },
+      {
+        name: "is ignored when it has passed, leaving the due day",
+        preferredWeekday: 2,
+        nextDueOn: WED,
+        pinned: false,
+        expected: WED,
+      },
+      {
+        name: "applies to overdue work from today",
+        preferredWeekday: 2,
+        nextDueOn: LAST_THU,
+        pinned: false,
+        expected: TUE,
+      },
+      {
+        name: "applies anywhere in the week to a task added by hand",
+        preferredWeekday: 3,
+        nextDueOn: "2026-12-01",
+        pinned: true,
+        expected: WED,
+      },
+      {
+        name: "does not place a task due after the last evening",
+        preferredWeekday: 3,
+        nextDueOn: SUN,
+        pinned: false,
+        expected: null,
+      },
+    ])("$name", ({ preferredWeekday, nextDueOn, pinned, expected }) => {
+      const out = planWeek(
+        input({
+          pinnedTaskIds: pinned ? ["t"] : [],
+          tasks: [task({ id: "t", preferredWeekday, nextDueOn })],
+        }),
+      );
+      expect(out.placements[0]?.date ?? null).toBe(expected);
+    });
   });
 
   it("places on the due date, not before it", () => {

@@ -360,23 +360,23 @@ export function planWeek(input: PlannerInput): PlannerOutput {
       };
     });
 
-    // A preferred weekday wins outright when it has room: a person chose
-    // it. Otherwise the task goes on its due day or the nearest evening
-    // after it, never earlier. A cadence is deliberate, and doing a job
-    // early both wastes the effort and shifts every later occurrence.
-    // Overdue work therefore lands on the first evening from today, and a
-    // task added by hand may go anywhere in the week.
+    // A task goes on its due day or the nearest evening after it, never
+    // earlier. A cadence is deliberate, and doing a job early both wastes
+    // the effort and shifts every later occurrence. Overdue work therefore
+    // lands on the first evening from today, and a task added by hand may
+    // go anywhere in the week. Within that, a preferred weekday wins
+    // outright when it has room: a person chose it.
     const earliest =
       candidate.code === "PINNED" || !task.nextDueOn
         ? input.today
         : task.nextDueOn;
+    const onOrAfter = ranked.filter((r) => r.slot.date >= earliest);
     const preferred =
       task.preferredWeekday === null
         ? []
-        : ranked.filter(
+        : onOrAfter.filter(
             (r) => isoWeekday(r.slot.date) === task.preferredWeekday,
           );
-    const onOrAfter = ranked.filter((r) => r.slot.date >= earliest);
 
     // Nearest date first; utilisation, heavy stacking and recent load only
     // decide between people on the same evening.

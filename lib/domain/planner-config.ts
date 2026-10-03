@@ -7,8 +7,10 @@
  * v3: a task goes on its due day or the nearest evening after, never earlier.
  * v4: missed and pushed work goes to the next day its owner isn't away,
  *     whatever that day's budget, across weekends and into the next week.
+ * v5: a preferred weekday only chooses among evenings on or after the due
+ *     date; it no longer pulls a task earlier.
  */
-export const ALGORITHM_VERSION = "v4";
+export const ALGORITHM_VERSION = "v5";
 
 export const PLANNER_WEIGHTS = {
   priority: {
